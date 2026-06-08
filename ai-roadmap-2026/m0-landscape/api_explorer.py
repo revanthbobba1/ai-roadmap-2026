@@ -23,12 +23,13 @@ from dotenv import load_dotenv
 import anthropic
 import openai
 
-load_dotenv()
+load_dotenv(override=True)
 
 # ── Pricing (USD per 1M tokens, update as models change) ──────────────────────
 PRICING = {
-    "claude-3-5-sonnet-20241022": {"input": 3.00, "output": 15.00},
+    "claude-haiku-4-5":           {"input": 0.80, "output": 4.00},
     "gpt-4o":                     {"input": 2.50, "output": 10.00},
+    "gpt-4o-mini":                {"input": 0.15, "output": 0.60},
 }
 
 @dataclass
@@ -79,7 +80,7 @@ def save_log(response: LLMResponse, log_dir: str = "logs"):
 async def call_claude(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: str = "claude-3-5-sonnet-20241022",
+    model: str = "claude-haiku-4-5",
     temperature: float = 0.7,
     max_tokens: int = 1024,
 ) -> LLMResponse:

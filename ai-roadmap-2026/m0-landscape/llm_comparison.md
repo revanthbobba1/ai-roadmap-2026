@@ -1,7 +1,7 @@
 # LLM Comparison — Month 0 Deliverable
 **Author:** Rev Bobba  
-**Date started:** _(fill in)_  
-**Models tested:** Claude 3.5 Sonnet, GPT-4o, _(add Gemini if you get to stretch goals)_
+**Date started:** 2026-06-07  
+**Models tested:** claude-haiku-4-5, GPT-4o
 
 ---
 
@@ -9,26 +9,76 @@
 
 | Model | Provider | Context Window | Input price (1M tokens) | Output price (1M tokens) |
 |-------|----------|---------------|------------------------|--------------------------|
-| claude-3-5-sonnet-20241022 | Anthropic | 200K | $3.00 | $15.00 |
+| claude-haiku-4-5 | Anthropic | 200K | $0.80 | $4.00 |
 | gpt-4o | OpenAI | 128K | $2.50 | $10.00 |
-| _(add row)_ | | | | |
+
+---
+
+## Observational Lenses
+*Fill these in as patterns emerge across all 10 experiments. Don't answer upfront — let the data tell you.*
+
+### Instruction Following
+Does the model follow explicit constraints (word limits, format rules, output schemas)?  
+**Claude:** _(fill in)_  
+**GPT-4o:** _(fill in)_  
+> Experiment 1 finding: GPT-4o followed the 150-word limit (~126 words). Claude did not (~172 words).
+
+### Hallucination vs. Uncertainty
+When the answer is unknown or ambiguous, does the model make something up or admit uncertainty?  
+**Claude:** _(fill in)_  
+**GPT-4o:** _(fill in)_
+
+### Consistency at Temperature=0
+Run the same prompt 3x at temp=0. Are outputs near-identical?  
+**Claude:** _(fill in)_  
+**GPT-4o:** _(fill in)_
+
+### Format / JSON Compliance
+When asked for a specific JSON schema, does the output parse cleanly every time?  
+**Claude:** _(fill in)_  
+**GPT-4o:** _(fill in)_
+
+### Long Context Degradation
+Ask a question about content near the end of a long document. Does the model lose track of earlier content?  
+**Claude:** _(fill in)_  
+**GPT-4o:** _(fill in)_
+
+### Cost vs. Quality Tradeoff
+For which task types is the cheaper model (claude-haiku-4-5) good enough vs. where does GPT-4o justify the price?  
+_(fill in after all 10 experiments)_
+
+### Latency
+Which model is consistently faster across experiments?  
+**Claude avg latency:** _(fill in)_  
+**GPT-4o avg latency:** _(fill in)_
+
+### Audience Awareness
+Does the model tailor its response to the specified audience (e.g. "explain like I'm a SWE")?  
+**Claude:** _(fill in)_  
+**GPT-4o:** _(fill in)_  
+> Experiment 1 finding: Claude picked up on the SWE framing and ended with a code-style breakdown (`Input: String, Output: String`). GPT-4o gave a more generic explanation that could have been written for anyone.
+
+### When I'd pick each model
+*(Fill in after all 10 experiments)*  
+**Claude haiku-4-5:** _(tasks where you'd choose it)_  
+**GPT-4o:** _(tasks where you'd choose it)_
 
 ---
 
 ## Experiment Results
 
 ### Experiment 1: Factual Question
-**Prompt:** _(paste your prompt here)_  
-**System prompt:** _(paste if used)_  
-**Temperature:** _(value)_
+**Prompt:** "What is a large language model? Explain it like I'm a software engineer who has never worked in ML."  
+**System prompt:** "You are a helpful assistant. Be concise — 150 words max."  
+**Temperature:** 0.7 (default)
 
-| | Claude 3.5 Sonnet | GPT-4o |
+| | claude-haiku-4-5 | GPT-4o |
 |-|-------------------|--------|
-| Response (first 200 chars) | | |
-| Tokens in / out | | |
-| Cost | | |
-| Latency (ms) | | |
-| My notes | | |
+| Response (first 200 chars) | "Think of it as a **massive statistical pattern-matching engine** trained on billions of text examples..." | "A large language model (LLM) is a type of artificial intelligence designed to understand and generate human-like text..." |
+| Tokens in / out | 46 / 230 | 46 / 168 |
+| Cost | $0.000957 | $0.001795 |
+| Latency (ms) | 3,923 | 7,010 |
+| My notes | Used markdown headers and structure unprompted. More tokens but cheaper due to lower output price. **Did NOT follow the 150-word limit** (~172 words). | Plain prose, more concise. Nearly 2x the cost and 2x slower despite fewer tokens — higher per-token price. **Followed the 150-word limit** (~126 words). |
 
 ---
 
