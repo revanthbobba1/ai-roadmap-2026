@@ -5,6 +5,12 @@
 
 ---
 
+## AI Stack Map
+
+![AI Stack Map](stack_map.png)
+
+---
+
 ## What this does
 
 - Calls Claude 3.5 Sonnet and GPT-4o with the same prompt **in parallel** (using asyncio)
@@ -57,8 +63,10 @@ Running all 10 experiments costs approximately $___. Each individual call is typ
 
 | File | Purpose |
 |------|---------|
-| `api_explorer.py` | Main script — extend this each week |
+| `api_explorer.py` | Main script — one function per experiment |
 | `llm_comparison.md` | Written analysis of all 10 experiments |
+| `stack_map.png` | 4-layer AI stack diagram |
+| `stack_map.html` | Source for the stack map diagram |
 | `logs/` | JSON-lines experiment logs (gitignored) |
 | `requirements.txt` | Python dependencies |
 | `.env.example` | API key template |
