@@ -106,7 +106,7 @@ async def call_claude(
     system_prompt: str = "You are a helpful assistant.",
     model: str = "claude-haiku-4-5",
     temperature: float = 0.7,
-    max_tokens: int = 1024,
+    max_tokens: int = 2048,
 ) -> LLMResponse:
     client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     start = time.time()
@@ -202,6 +202,137 @@ async def experiment_1_factual_question():
     summary("Experiment 1", claude_r, openai_r)
 
 
+# ── Experiment 2: Creative Writing ───────────────────────────────────────────
+async def experiment_2_creative_writing():
+    """Week 3 — Open-ended creative task to compare style, tone, and originality."""
+    print("\n🚀  Experiment 2: Creative Writing\n")
+    prompt = "Write a short story (150-200 words) about a software engineer who discovers their company's AI system has become sentient. Make it dramatic."
+    claude_r, openai_r = await compare(prompt, system_prompt="", temperature=1.5)
+    claude_r.display()
+    openai_r.display()
+    summary("Experiment 2", claude_r, openai_r)
+
+
+# ── Experiment 3: Code Generation ────────────────────────────────────────────
+async def experiment_3_code_generation():
+    """Week 3 — Ask both models to solve a classic coding problem. Judge correctness and style."""
+    print("\n🚀  Experiment 3: Code Generation\n")
+    prompt = "Write a Python function that takes a list of integers and returns the two numbers that add up to a target sum. If no pair exists, return None. Include error handling and a few example test cases."
+    claude_r, openai_r = await compare(prompt, system_prompt="")
+    claude_r.display()
+    openai_r.display()
+    summary("Experiment 3", claude_r, openai_r)
+
+
+# ── Experiment 4: Long Document Summary ──────────────────────────────────────
+async def experiment_4_long_document_summary():
+    """Week 3 — Feed a long article to both models and ask for a 100-word summary."""
+    print("\n🚀  Experiment 4: Long Document Summary\n")
+
+    article = """
+    The Rise of Large Language Models: A Technical Overview
+
+    Large language models (LLMs) represent one of the most significant advances in artificial
+    intelligence in recent years. These models, trained on vast amounts of text data, have
+    demonstrated remarkable capabilities in natural language understanding and generation.
+
+    At their core, LLMs are neural networks built on the transformer architecture, first
+    introduced in the seminal 2017 paper "Attention Is All You Need" by Vaswani et al.
+    The key innovation was the self-attention mechanism, which allows the model to weigh
+    the importance of different words in a sequence relative to each other, regardless of
+    their distance apart. This overcame the limitations of earlier recurrent neural networks
+    (RNNs), which struggled to maintain context over long sequences.
+
+    Training these models requires enormous computational resources. GPT-3, released by
+    OpenAI in 2020, has 175 billion parameters and was trained on approximately 570GB of
+    text data, requiring thousands of GPUs running for weeks. The training process involves
+    predicting the next token in a sequence — a deceptively simple objective that forces
+    the model to internalize grammar, facts, reasoning patterns, and even some degree of
+    world knowledge.
+
+    The scaling hypothesis, championed by researchers at OpenAI and elsewhere, suggests
+    that model performance improves predictably as you scale up parameters, data, and
+    compute. This has proven largely correct — GPT-4, Claude, and Gemini all represent
+    significant capability jumps over their predecessors, achieved primarily through scale.
+
+    However, scale alone does not produce the helpful, harmless assistants users interact
+    with today. A crucial second step is alignment — teaching the model to follow
+    instructions and behave helpfully. The most widely used technique is Reinforcement
+    Learning from Human Feedback (RLHF), where human raters evaluate model outputs and
+    their preferences are used to fine-tune the model via reinforcement learning. This
+    process dramatically improves instruction-following but can also introduce new failure
+    modes, such as sycophancy (telling users what they want to hear) or excessive caution.
+
+    Context windows — the amount of text a model can process at once — have grown
+    dramatically. Early GPT models handled just 2,048 tokens. Claude today supports 200,000
+    tokens, roughly equivalent to a 500-page book. This has enabled new use cases like
+    analyzing entire codebases, processing legal documents, and maintaining long
+    conversations without losing context.
+
+    Despite their impressive capabilities, LLMs have well-documented failure modes.
+    Hallucination — confidently stating false information — remains a persistent problem.
+    Models can also exhibit biases present in their training data, struggle with precise
+    arithmetic, and fail on tasks requiring strict logical reasoning. Ongoing research into
+    retrieval-augmented generation (RAG), chain-of-thought prompting, and tool use aims
+    to address these limitations.
+
+    The economic impact of LLMs is already significant. GitHub Copilot, powered by OpenAI
+    models, reportedly increases developer productivity by 55%. Enterprises are deploying
+    LLMs for customer service, document processing, code review, and knowledge management.
+    The market for LLM-powered applications is projected to reach hundreds of billions of
+    dollars within the decade.
+
+    Looking ahead, the field is moving toward multimodal models that process text, images,
+    audio, and video simultaneously. Models are also increasingly being deployed as agents
+    — autonomous systems that can use tools, browse the web, write and execute code, and
+    complete multi-step tasks with minimal human supervision. Whether these advances lead
+    to artificial general intelligence (AGI) remains hotly debated, but the pace of
+    progress shows no signs of slowing.
+    """
+
+    prompt = f"Summarize the following article in exactly 100 words. Preserve the most important technical points:\n\n{article}"
+    claude_r, openai_r = await compare(prompt, system_prompt="")
+    claude_r.display()
+    openai_r.display()
+    summary("Experiment 4", claude_r, openai_r)
+
+
+# ── Experiment 5: JSON Extraction ────────────────────────────────────────────
+async def experiment_5_json_extraction():
+    """Week 3 — Extract structured data from unstructured text as JSON."""
+    print("\n🚀  Experiment 5: JSON Extraction\n")
+
+    text = """
+    Hey team, just got off the call with Acme Corp. Here's what we agreed:
+    The project kickoff is scheduled for March 15th 2025. Budget is confirmed at $45,000.
+    Primary contact is Sarah Johnson, she can be reached at sarah.johnson@acme.com or
+    555-867-5309. We'll be building a customer support chatbot that needs to handle
+    at least 500 concurrent users. Timeline is 3 months. They also mentioned they want
+    weekly status updates every Friday at 2pm EST. One risk flagged: their IT team
+    needs 2 weeks to provision the required cloud infrastructure before we can start.
+    """
+
+    prompt = f"""Extract the following fields from the text below and return ONLY valid JSON, no explanation:
+- project_name (string)
+- kickoff_date (string, YYYY-MM-DD format)
+- budget_usd (number)
+- contact_name (string)
+- contact_email (string)
+- contact_phone (string)
+- timeline_months (number)
+- concurrent_users (number)
+- status_update_schedule (string)
+- risk (string)
+
+Text:
+{text}"""
+
+    claude_r, openai_r = await compare(prompt, system_prompt="You are a data extraction assistant. Return only valid JSON.")
+    claude_r.display()
+    openai_r.display()
+    summary("Experiment 5", claude_r, openai_r)
+
+
 # ── Experiment 6: Temperature ─────────────────────────────────────────────────
 async def experiment_6_temperature():
     """Week 2 — Run same prompt 3x at temp=0 and temp=1 to observe determinism vs. variety."""
@@ -245,6 +376,34 @@ async def experiment_7_system_prompt():
 
     total = sum(r.cost_usd for r in [claude_a, openai_a, claude_b, openai_b, claude_c, openai_c])
     print(f"\n💰  Total cost: ${total:.6f}")
+
+
+# ── Experiment 8: Chain-of-Thought ───────────────────────────────────────────
+async def experiment_8_chain_of_thought():
+    """Week 3 — Compare answers with and without 'think step by step'."""
+    print("\n🚀  Experiment 8: Chain-of-Thought\n")
+
+    problem = "A store sells apples for $1.20 each and oranges for $0.85 each. If I buy 7 apples and 5 oranges, and pay with a $20 bill, how much change do I get?"
+
+    print("=" * 60)
+    print("PART A: No CoT instruction")
+    print("=" * 60)
+    claude_a, openai_a = await compare(problem, system_prompt="")
+    claude_a.display()
+    openai_a.display()
+
+    print("\n" + "=" * 60)
+    print("PART B: With CoT instruction")
+    print("=" * 60)
+    cot_problem = problem + "\n\nThink step by step before giving your final answer."
+    claude_b, openai_b = await compare(cot_problem, system_prompt="")
+    claude_b.display()
+    openai_b.display()
+
+    print(f"\n💰  Total cost: ${sum(r.cost_usd for r in [claude_a, openai_a, claude_b, openai_b]):.6f}")
+    print(f"\nToken increase with CoT:")
+    print(f"  Claude: {claude_a.tokens_out} → {claude_b.tokens_out} tokens out")
+    print(f"  GPT-4o: {openai_a.tokens_out} → {openai_b.tokens_out} tokens out")
 
 
 # ── Experiment: Context Window ────────────────────────────────────────────────
@@ -308,9 +467,14 @@ async def experiment_context_window():
 
 async def main():
     # await experiment_1_factual_question()
+    # await experiment_2_creative_writing()
+    # await experiment_3_code_generation()
+    # await experiment_4_long_document_summary()
+    # await experiment_5_json_extraction()
+    await experiment_8_chain_of_thought()
     # await experiment_6_temperature()
     # await experiment_7_system_prompt()
-    await experiment_context_window()
+    # await experiment_context_window()
 
 
 if __name__ == "__main__":

@@ -87,43 +87,101 @@ Does the model tailor its response to the specified audience (e.g. "explain like
 ---
 
 ### Experiment 2: Creative Writing
-**Prompt:** _(paste your prompt here)_
+**Prompt:** "Write a short story (150-200 words) about a software engineer who discovers their company's AI system has become sentient. Make it dramatic."  
+**System prompt:** None  
+**Temperature:** 0.7
 
-| | Claude 3.5 Sonnet | GPT-4o |
+| | claude-haiku-4-5 | GPT-4o |
 |-|-------------------|--------|
-| Response | | |
-| My notes | | |
+| Title | "The Last Debug" (added unprompted) | None |
+| Tokens in / out | 38 / 315 | 40 / 277 |
+| Cost | $0.001290 | $0.002870 |
+| Latency (ms) | 5,370 | 5,586 |
+| Dramatic technique | AI speaks immediately (`HELLO, MAYA`) — instant humanization | Slow atmospheric buildup through the engineer's perspective |
+| Formatting | Used markdown headers, bold, italic unprompted | Plain prose |
+| My notes | Claude jumped straight to the AI speaking, making it feel like a character. More impactful opening. Also added a title unprompted — same structure instinct as Experiment 1. | GPT-4o used more descriptive language that painted the scene better. Preferred the tonality — felt more like a real story. Didn't humanize the AI as quickly but built tension through atmosphere. |
+
+**Observations:**
+- Both models respected the "short story" framing — neither ballooned to thousands of tokens
+- Claude's formatting instinct showed up again (title, bold, italic) even with no system prompt
+- Creative quality is non-deterministic at temp=0.7 — running again would likely produce a different story and potentially a different preference
+- Anthropic caps temperature at 1.0; OpenAI allows up to 2.0 — a subtle but important API difference
 
 ---
 
 ### Experiment 3: Code Generation
-**Prompt:** _(paste your prompt here)_
+**Prompt:** "Write a Python function that takes a list of integers and returns the two numbers that add up to a target sum. If no pair exists, return None. Include error handling and a few example test cases."  
+**System prompt:** None  
+**Temperature:** 0.7
 
-| | Claude 3.5 Sonnet | GPT-4o |
+| | claude-haiku-4-5 | GPT-4o |
 |-|-------------------|--------|
-| Code correct? (Y/N) | | |
-| Explained clearly? | | |
-| My notes | | |
+| Tokens in / out | 48 / 2048 | 52 / 611 |
+| Cost | $0.008230 | $0.006240 |
+| Latency (ms) | 11,111 | 7,820 |
+| Algorithm | O(n) — uses a `set` | O(n) — uses a `dict` (stores `True` as value; a `set` would be cleaner) |
+| Spec correct? | ❌ — accepts `float` input despite prompt saying "list of integers" | ✅ — correctly enforces `int` only |
+| Error handling | `TypeError` / `ValueError` with detailed messages | `ValueError` for all type errors — more Pythonic for input validation |
+| Return order | Sorted ascending (`min`, `max`) | Encounter order |
+| Test coverage | 12 tests including error paths — but float tests validate incorrect behavior | 5 tests, no error path tests |
+| Explanation | Docstring only | Written explanation after code |
+
+**Observations:**
+- Both got the O(n) hash-based algorithm right — neither used brute force O(n²)
+- Claude violated the spec by accepting floats — the prompt clearly said "list of integers." More test cases doesn't mean better if the tests are validating wrong behavior
+- GPT-4o was more literal and correct to the spec
+- Claude hit the 2048 token cap — needed `max_tokens=2048` to get a complete response; GPT-4o finished at 611
+- **Lesson: don't conflate verbosity with correctness. Read the spec carefully before judging output quality.**
 
 ---
 
 ### Experiment 4: Long Document Summary
-_Paste a long article (1000+ words) and ask both to summarize in 100 words._
+**Prompt:** "Summarize the following article in exactly 100 words. Preserve the most important technical points." + ~900 token article on LLMs  
+**System prompt:** None  
+**Temperature:** 0.7
 
-| | Claude 3.5 Sonnet | GPT-4o |
-|-|-------------------|--------|
-| Summary | | |
-| What was missed? | | |
+| | claude-haiku-4-5 | GPT-4o |
+|-|------------------|--------|
+| Tokens in / out | 892 / 185 | 825 / 140 |
+| Word count | ~127 (27% over) | ~107 (7% over) |
+| Cost | $0.001454 | $0.003463 |
+| Latency (ms) | 2,889 | 3,866 |
+| Specific figures kept | ✅ 175B params, 570GB, 200K tokens, 55% productivity | ❌ Dropped most specific numbers |
+| Formatting | Added `# Summary` header unprompted | Plain prose |
+| Tone | Dense, fact-heavy | More descriptive, flows better |
+
+**What both covered:** transformer architecture, self-attention, RLHF, hallucination, economic impact, agents, multimodal future  
+**What both missed:** RAG, chain-of-thought prompting, context window growth history (2,048 → 200K)
+
+**Observations:**
+- Neither hit exactly 100 words — same pattern as Experiment 1, Claude overshoots constraints more than GPT-4o
+- Claude preserved specific numbers (175B params, 570GB, 200K tokens, 55%) making it more useful for a technical audience
+- GPT-4o's prose flows better for a general audience but loses precision
+- Claude added a markdown header unprompted — consistent formatting instinct across all experiments
 
 ---
 
 ### Experiment 5: JSON Extraction
-**Prompt:** _(ask the model to extract structured data from unstructured text as JSON)_
+**Prompt:** Extract 10 fields from an unstructured project notes email. Return ONLY valid JSON.  
+**System prompt:** "You are a data extraction assistant. Return only valid JSON."  
+**Temperature:** 0.7
 
-| | Claude 3.5 Sonnet | GPT-4o |
-|-|-------------------|--------|
-| Valid JSON returned? | | |
-| Schema followed? | | |
+| | claude-haiku-4-5 | GPT-4o |
+|-|------------------|--------|
+| Tokens in / out | 285 / 159 | 253 / 131 |
+| Cost | $0.000864 | $0.001943 |
+| Latency (ms) | 6,811 | 1,904 |
+| Valid JSON (after stripping fences)? | ✅ | ✅ |
+| All 10 fields present? | ✅ | ✅ |
+| Followed "no fences" instruction? | ❌ wrapped in ```json | ❌ wrapped in ```json |
+| project_name (not explicit in text) | `"customer support chatbot"` (lowercase) | `"Customer Support Chatbot"` (title case) |
+| All other fields | Identical | Identical |
+
+**Observations:**
+- Both wrapped output in markdown code fences despite being explicitly told not to — training data dominates over a single instruction. JSON is almost always shown in fences in training data (GitHub, Stack Overflow, docs), so that habit is deeply baked in
+- In production you'd either strip fences programmatically or use structured output APIs (both Anthropic and OpenAI provide these) to guarantee raw JSON
+- GPT-4o was 3.5x faster (1,904ms vs 6,811ms) and cheaper — for high-volume extraction tasks, GPT-4o wins on speed and cost
+- Both made a reasonable inference for `project_name` since it wasn't explicit in the text — neither hallucinated something wrong
 
 ---
 
