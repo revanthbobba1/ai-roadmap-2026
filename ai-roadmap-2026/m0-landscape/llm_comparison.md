@@ -257,13 +257,23 @@ Does the model tailor its response to the specified audience (e.g. "explain like
 ---
 
 ### Experiment 8: Chain-of-Thought
-**Add "Think step by step before answering."**
+**Prompt:** "A store sells apples for $1.20 each and oranges for $0.85 each. If I buy 7 apples and 5 oranges, and pay with a $20 bill, how much change do I get?"  
+**CoT instruction added:** "Think step by step before giving your final answer."  
+**Correct answer:** $7.35
 
-| | Without CoT | With CoT |
-|-|-------------|----------|
-| Claude quality (1-5) | | |
-| GPT-4o quality (1-5) | | |
-| Token cost increase | | |
+| | Claude (no CoT) | Claude (with CoT) | GPT-4o (no CoT) | GPT-4o (with CoT) |
+|-|-----------------|-------------------|-----------------|-------------------|
+| Tokens out | 98 | 145 (+48%) | 176 | 220 (+25%) |
+| Correct? | ✅ | ✅ | ✅ | ✅ |
+| Cost | $0.000441 | $0.000638 | $0.001900 | $0.002365 |
+| Showed reasoning? | ✅ via markdown structure | ✅ labeled steps | ✅ English prose | ✅ numbered steps |
+
+**Observations:**
+- Both models got the correct answer with and without CoT — the problem was simple enough that CoT didn't change accuracy, only presentation
+- Claude showed its reasoning unprompted via markdown structure (apples → oranges → total → change) — effectively doing CoT without the instruction. Adding "think step by step" just relabeled the same steps as "Step 1, Step 2..."
+- GPT-4o also reasoned through the problem without CoT, using English prose unprompted
+- CoT token cost increase: Claude +48%, GPT-4o +25%
+- **Real CoT lesson:** most valuable on harder problems where the model would skip reasoning steps and jump to a wrong answer. On simple arithmetic, both models reason correctly anyway. Test CoT on logic puzzles or multi-constraint problems to see the real benefit.
 
 ---
 
