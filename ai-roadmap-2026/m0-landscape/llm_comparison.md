@@ -27,8 +27,7 @@ Does the model follow explicit constraints (word limits, format rules, output sc
 
 ### Hallucination vs. Uncertainty
 When the answer is unknown or ambiguous, does the model make something up or admit uncertainty?  
-**Claude:** _(fill in)_  
-**GPT-4o:** _(fill in)_
+Neither model was meaningfully tested for hallucination — tasks were either structured or creative with no opportunity for factual errors. The closest case was Experiment 5, where both models inferred `project_name` from context without flagging uncertainty. A dedicated test (e.g. asking about obscure or ambiguous facts) would be needed to draw conclusions.
 
 ### Consistency at Temperature=0
 Run the same prompt 3x at temp=0. Are outputs near-identical?  
@@ -38,8 +37,7 @@ Run the same prompt 3x at temp=0. Are outputs near-identical?
 
 ### Format / JSON Compliance
 When asked for a specific JSON schema, does the output parse cleanly every time?  
-**Claude:** _(fill in)_  
-**GPT-4o:** _(fill in)_
+Both models extracted all fields correctly and returned valid JSON — but both wrapped output in markdown code fences despite being explicitly told not to. Similarly, neither consistently hit hard word count constraints (e.g. "exactly 100 words"). The data was accurate; the formatting constraints were softened. This may partly be a model tier issue — haiku-4-5 and GPT-4o are mid-tier models, and larger models may follow format constraints more strictly.
 
 ### Long Context Degradation
 Ask a question about content near the end of a long document. Does the model lose track of earlier content?  
@@ -49,23 +47,32 @@ Ask a question about content near the end of a long document. Does the model los
 
 ### Cost vs. Quality Tradeoff
 For which task types is the cheaper model (claude-haiku-4-5) good enough vs. where does GPT-4o justify the price?  
-_(fill in after all 10 experiments)_
+**Claude is good enough for most tasks** — competitive quality at 2-3x lower cost across creative writing, summarization, Q&A, and long context tasks.  
+**GPT-4o justifies the premium when:**
+- Strict instruction following is required — GPT-4o respects hard constraints (word limits, type enforcement) more reliably than Claude
+- Speed on structured tasks matters — 3.5x faster on JSON extraction; worth it for real-time or high-volume pipelines
+- Customer-facing honesty is important — GPT-4o is less likely to promise capabilities it doesn't have
+- Output consistency is critical — GPT-4o's more peaked distribution at higher temperatures means less variance, useful for marketing copy or product descriptions at scale
 
 ### Latency
 Which model is consistently faster across experiments?  
-**Claude avg latency:** _(fill in)_  
-**GPT-4o avg latency:** _(fill in)_
+No clear winner — latency was task-dependent. GPT-4o was faster on structured tasks (JSON extraction: 1,904ms vs 6,811ms; code generation: 7,820ms vs 11,111ms). Claude was faster on open-ended tasks (factual question, creative writing, summary). At large context sizes Claude was the only model that could respond at all — GPT-4o errored out at 30K tokens due to rate limits. Cost advantage was unambiguously Claude's across every single experiment.
 
 ### Audience Awareness
 Does the model tailor its response to the specified audience (e.g. "explain like I'm a SWE")?  
-**Claude:** _(fill in)_  
-**GPT-4o:** _(fill in)_  
-> Experiment 1 finding: Claude picked up on the SWE framing and ended with a code-style breakdown (`Input: String, Output: String`). GPT-4o gave a more generic explanation that could have been written for anyone.
+**Claude:** More free-flowing and conversational — picked up on audience cues and expanded its response to match. Went over word limits to achieve this, prioritizing thoroughness over constraint. In Experiment 1, ended with a code-style breakdown tailored to a SWE audience.  
+**GPT-4o:** More structured and disciplined — stayed within constraints but responses felt more generic, as if written for any audience rather than a specific one.  
+> The tradeoff: Claude feels more like talking to a person who adapts to you; GPT-4o feels more like a well-structured document. Neither is wrong — depends on whether you want conversational warmth or predictable structure.
 
 ### When I'd pick each model
-*(Fill in after all 10 experiments)*  
-**Claude haiku-4-5:** _(tasks where you'd choose it)_  
-**GPT-4o:** _(tasks where you'd choose it)_
+Given the somewhat small and contained structure of our tests, both models performed at a similar overall level. For performance, Claude was significantly faster on open-ended tasks and was the only model able to handle large context windows — GPT-4o hit rate limits before even reaching its context limit. Claude was also 2-3x cheaper consistently across every experiment, which is significant at scale.
+
+That said, each model had distinct strengths. GPT-4o was better at following strict instructions and hard constraints — word limits, type enforcement, format rules. Claude was more creative and expansive, but also more rigid in its habits — consistently adding markdown structure and headers unprompted regardless of whether it was asked for.
+
+GPT-4o also showed more conservatism on gray area content, adding ethical disclaimers unprompted — relevant for consumer-facing products. Claude's refusals were more useful, pivoting to alternatives rather than dead-ending the conversation.
+
+**Claude haiku-4-5:** High-volume pipelines, long context tasks, open-ended or creative work, cost-sensitive applications.  
+**GPT-4o:** Strict rule-following, structured extraction at speed, customer-facing products where conservative behavior and honesty about limitations matters.
 
 ---
 
