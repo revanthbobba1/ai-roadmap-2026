@@ -99,6 +99,25 @@ def summary(label: str, claude_r: LLMResponse, openai_r: LLMResponse):
     print(f"\n💰  Total: ${claude_r.cost_usd + openai_r.cost_usd:.6f}")
 
 
+# ── Retry helper ───────────────────────────────────────────────────────────────
+
+async def with_exponential_backoff(fn, max_retries: int = 4):
+    """
+    Retry an async API call on rate limit errors using exponential backoff.
+    Waits 1s, 2s, 4s, 8s between attempts before giving up.
+    All other errors are re-raised immediately without retrying.
+    """
+    for attempt in range(max_retries):
+        try:
+            return await fn()
+        except (anthropic.RateLimitError, openai.RateLimitError) as e:
+            if attempt == max_retries - 1:
+                raise  # out of retries — let caller handle it
+            wait = 2 ** attempt  # 1, 2, 4, 8 seconds
+            print(f"  ⏳ Rate limited. Retrying in {wait}s (attempt {attempt + 1}/{max_retries})...")
+            await asyncio.sleep(wait)
+
+
 # ── API callers ────────────────────────────────────────────────────────────────
 
 async def call_claude(
@@ -111,11 +130,11 @@ async def call_claude(
     client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     start = time.time()
     try:
-        message = await client.messages.create(
+        message = await with_exponential_backoff(lambda: client.messages.create(
             model=model, max_tokens=max_tokens, temperature=temperature,
             system=system_prompt,
             messages=[{"role": "user", "content": prompt}],
-        )
+        ))
         latency_ms = int((time.time() - start) * 1000)
         tokens_in, tokens_out = message.usage.input_tokens, message.usage.output_tokens
         return LLMResponse(
@@ -143,13 +162,13 @@ async def call_openai(
     client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     start = time.time()
     try:
-        completion = await client.chat.completions.create(
+        completion = await with_exponential_backoff(lambda: client.chat.completions.create(
             model=model, temperature=temperature, max_tokens=max_tokens,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
             ],
-        )
+        ))
         latency_ms = int((time.time() - start) * 1000)
         tokens_in = completion.usage.prompt_tokens
         tokens_out = completion.usage.completion_tokens

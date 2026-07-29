@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Month 0: AI Landscape Explorer — Rev Bobba</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f13;
+    color: #e8e6f0;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Progress bar */
+  #progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #7c3aed, #06b6d4);
+    transition: width 0.4s ease;
+    z-index: 100;
+  }
+
+  /* Slide container */
+  #deck {
+    width: 100%; height: 100vh;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 48px 80px;
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  .slide.active {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+  }
+
+  .slide.exit {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  /* Nav */
+  #nav {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    z-index: 100;
+  }
+
+  .nav-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #e8e6f0;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,0.15); }
+  .nav-btn:disabled { opacity: 0.25; cursor: default; }
+
+  #slide-counter {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    min-width: 40px;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+
+  /* Dots */
+  #dots {
+    position: fixed;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .dot.active { background: #7c3aed; transform: scale(1.4); }
+
+  /* ─── Typography ─── */
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #7c3aed;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+
+  h1 { font-size: 56px; font-weight: 700; line-height: 1.1; letter-spacing: -1.5px; }
+  h2 { font-size: 38px; font-weight: 700; line-height: 1.15; letter-spacing: -0.8px; }
+
+  .subtitle {
+    font-size: 18px;
+    color: rgba(232,230,240,0.55);
+    margin-top: 12px;
+    font-weight: 400;
+  }
+
+  /* ─── Cards / Chips ─── */
+  .card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 16px;
+    padding: 24px 28px;
+  }
+
+  .stat-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 40px;
+  }
+
+  .stat {
+    background: rgba(124,58,237,0.12);
+    border: 1px solid rgba(124,58,237,0.25);
+    border-radius: 12px;
+    padding: 14px 24px;
+    text-align: center;
+  }
+  .stat-num {
+    font-size: 28px;
+    font-weight: 700;
+    color: #a78bfa;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: rgba(232,230,240,0.5);
+    margin-top: 2px;
+    letter-spacing: 0.04em;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid;
+  }
+  .chip-purple { background: rgba(124,58,237,0.12); border-color: rgba(124,58,237,0.3); color: #c4b5fd; }
+  .chip-teal   { background: rgba(6,182,212,0.10); border-color: rgba(6,182,212,0.25); color: #67e8f9; }
+  .chip-green  { background: rgba(34,197,94,0.10); border-color: rgba(34,197,94,0.25); color: #86efac; }
+  .chip-amber  { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.25); color: #fcd34d; }
+
+  /* ─── Slide 1: Title ─── */
+  #s1 { text-align: center; }
+  #s1 h1 { background: linear-gradient(135deg, #e8e6f0 30%, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .chip-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+
+  /* ─── Slide 2: What I Built ─── */
+  .arch-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    max-width: 780px;
+    margin-top: 36px;
+  }
+  .arch-box {
+    flex: 1;
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid;
+  }
+  .arch-box-main { background: rgba(124,58,237,0.15); border-color: rgba(124,58,237,0.35); }
+  .arch-box-claude { background: rgba(6,182,212,0.08); border-color: rgba(6,182,212,0.2); }
+  .arch-box-oai { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.2); }
+  .arch-box-log { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.2); }
+  .arch-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; opacity: 0.55; }
+  .arch-name { font-size: 15px; font-weight: 600; }
+  .arch-arrow { font-size: 22px; color: rgba(255,255,255,0.2); flex-shrink: 0; }
+  .split-arch { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .feature-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
+
+  /* ─── Slide 3: Stack ─── */
+  .stack-wrap { width: 100%; max-width: 640px; display: flex; flex-direction: column; gap: 10px; margin-top: 32px; }
+  .stack-layer {
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid;
+    transition: transform 0.2s;
+  }
+  .stack-layer:hover { transform: translateX(4px); }
+  .layer-num { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; opacity: 0.5; min-width: 24px; }
+  .layer-title { font-size: 15px; font-weight: 600; flex: 1; }
+  .layer-sub { font-size: 12px; opacity: 0.5; }
+  .layer-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    padding: 3px 10px; border-radius: 100px;
+  }
+  .l4 { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.2); }
+  .l3 { background: rgba(124,58,237,0.14); border-color: rgba(124,58,237,0.35); }
+  .l3 .layer-badge { background: rgba(124,58,237,0.3); color: #c4b5fd; }
+  .l2 { background: rgba(6,182,212,0.10); border-color: rgba(6,182,212,0.28); }
+  .l2 .layer-badge { background: rgba(6,182,212,0.25); color: #67e8f9; }
+  .l1 { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.2); }
+
+  /* ─── Slide 4: Temperature ─── */
+  .output-bubble {
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.07);
+    line-height: 1.5;
+    margin-bottom: 8px;
+    transition: border-color 0.3s;
+  }
+  .run-label { font-size: 11px; opacity: 0.35; margin-bottom: 4px; }
+  input[type=range] {
+    width: 100%; accent-color: #7c3aed; cursor: pointer; margin: 8px 0;
+  }
+  .prob-bar-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .prob-row { display: flex; align-items: center; gap: 8px; }
+  .prob-token { font-size: 11px; font-family: monospace; min-width: 52px; opacity: 0.6; text-align: right; }
+  .prob-track { flex: 1; height: 10px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+  .prob-fill { height: 100%; border-radius: 4px; background: #7c3aed; transition: width 0.4s ease; }
+  .prob-fill.top { background: #a78bfa; }
+  .prob-pct { font-size: 10px; min-width: 32px; opacity: 0.45; }
+
+  /* ─── Slide 5: Cost ─── */
+  .cost-grid { display: flex; gap: 20px; width: 100%; max-width: 720px; margin-top: 32px; }
+  .cost-card {
+    flex: 1; border-radius: 16px; padding: 24px;
+    border: 1px solid; text-align: center;
+  }
+  .cost-card.claude { background: rgba(6,182,212,0.07); border-color: rgba(6,182,212,0.25); }
+  .cost-card.openai { background: rgba(34,197,94,0.07); border-color: rgba(34,197,94,0.2); }
+  .cost-model { font-size: 13px; opacity: 0.5; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .cost-price { font-size: 40px; font-weight: 700; margin-bottom: 4px; }
+  .cost-unit { font-size: 12px; opacity: 0.4; margin-bottom: 20px; }
+  .bar-wrap { background: rgba(0,0,0,0.3); border-radius: 6px; height: 8px; margin: 10px 0; overflow: hidden; }
+  .bar { height: 100%; border-radius: 6px; }
+  .bar-claude { background: #06b6d4; width: 39%; }
+  .bar-oai { background: #22c55e; width: 100%; }
+  .cost-monthly { font-size: 22px; font-weight: 700; margin-top: 14px; }
+  .cost-note { font-size: 11px; opacity: 0.4; margin-top: 4px; }
+
+  /* ─── Slide 6: Techniques ─── */
+  .technique-grid { display: flex; gap: 16px; width: 100%; max-width: 800px; margin-top: 32px; }
+  .technique-card {
+    flex: 1; border-radius: 16px; padding: 22px 20px;
+    border: 1px solid rgba(255,255,255,0.09);
+    background: rgba(255,255,255,0.04);
+  }
+  .technique-icon { font-size: 26px; margin-bottom: 12px; }
+  .technique-name { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+  .technique-def { font-size: 12px; opacity: 0.5; margin-bottom: 12px; line-height: 1.5; }
+  .technique-finding {
+    font-size: 13px; line-height: 1.6;
+    padding: 10px 12px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    border-left: 3px solid #7c3aed;
+  }
+
+  /* ─── Slide 7: Comparison ─── */
+  .compare-grid { display: flex; gap: 20px; width: 100%; max-width: 760px; margin-top: 32px; }
+  .compare-card {
+    flex: 1; border-radius: 16px; padding: 24px;
+    border: 1px solid;
+  }
+  .compare-card.claude-card { background: rgba(6,182,212,0.07); border-color: rgba(6,182,212,0.3); }
+  .compare-card.oai-card { background: rgba(34,197,94,0.07); border-color: rgba(34,197,94,0.25); }
+  .compare-model { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; opacity: 0.6; text-transform: uppercase; margin-bottom: 6px; }
+  .compare-name { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+  .compare-tag { font-size: 12px; margin-bottom: 6px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .compare-tag:last-child { border-bottom: none; }
+  .tag-label { opacity: 0.45; font-size: 11px; margin-bottom: 2px; }
+
+  /* ─── Slide 8: Next ─── */
+  #s8 { text-align: center; }
+  .next-card {
+    margin-top: 36px;
+    border-radius: 20px;
+    padding: 36px 48px;
+    background: rgba(124,58,237,0.12);
+    border: 1px solid rgba(124,58,237,0.3);
+    max-width: 560px;
+  }
+  .next-month { font-size: 13px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+  .next-title { font-size: 32px; font-weight: 700; margin-bottom: 16px; }
+  .next-items { display: flex; flex-direction: column; gap: 8px; text-align: left; margin-top: 20px; }
+  .next-item {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px; color: rgba(232,230,240,0.65);
+  }
+  .next-dot { width: 6px; height: 6px; border-radius: 50%; background: #7c3aed; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<div id="deck">
+
+  <!-- Slide 1: Title -->
+  <div class="slide active" id="s1">
+    <div class="eyebrow">AI Engineer Roadmap 2026 · Month 0</div>
+    <h1>AI Landscape<br>Explorer</h1>
+    <div class="subtitle">Rev Bobba — Java SWE → AI Engineer</div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-num">10</div><div class="stat-label">Experiments</div></div>
+      <div class="stat"><div class="stat-num">2</div><div class="stat-label">Models</div></div>
+      <div class="stat"><div class="stat-num">~$2</div><div class="stat-label">Total Cost</div></div>
+      <div class="stat"><div class="stat-num">4</div><div class="stat-label">Weeks</div></div>
+    </div>
+    <div class="chip-row">
+      <span class="chip chip-purple">Python + asyncio</span>
+      <span class="chip chip-teal">Claude haiku-4-5</span>
+      <span class="chip chip-green">GPT-4o</span>
+      <span class="chip chip-amber">JSONL logging</span>
+    </div>
+  </div>
+
+  <!-- Slide 2: What I Built -->
+  <div class="slide" id="s2">
+    <div class="eyebrow">What I Built</div>
+    <h2>A parallel LLM comparison harness</h2>
+    <div class="arch-row">
+      <div class="arch-box arch-box-main">
+        <div class="arch-label">script</div>
+        <div class="arch-name">api_explorer.py</div>
+        <div style="font-size:12px;opacity:0.45;margin-top:6px;">10 named experiments<br>comment in/out to run</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="split-arch">
+        <div class="arch-box arch-box-claude">
+          <div class="arch-label">Anthropic</div>
+          <div class="arch-name">claude-haiku-4-5</div>
+        </div>
+        <div class="arch-box arch-box-oai">
+          <div class="arch-label">OpenAI</div>
+          <div class="arch-name">GPT-4o</div>
+        </div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box arch-box-log">
+        <div class="arch-label">output</div>
+        <div class="arch-name">logs/*.jsonl</div>
+        <div style="font-size:12px;opacity:0.45;margin-top:6px;">model · tokens · cost<br>latency · response</div>
+      </div>
+    </div>
+    <div class="feature-row">
+      <span class="chip chip-purple">asyncio — both models in parallel</span>
+      <span class="chip chip-teal">tiktoken + Anthropic count_tokens</span>
+      <span class="chip chip-amber">exponential backoff retry</span>
+      <span class="chip chip-green">cost calculated per call</span>
+    </div>
+  </div>
+
+  <!-- Slide 3: Stack -->
+  <div class="slide" id="s3">
+    <div class="eyebrow">The AI Stack</div>
+    <h2>Where does this work live?</h2>
+    <div class="stack-wrap">
+      <div class="stack-layer l4">
+        <div class="layer-num">L4</div>
+        <div>
+          <div class="layer-title">Infrastructure</div>
+          <div class="layer-sub">GPUs, cloud compute, data pipelines</div>
+        </div>
+      </div>
+      <div class="stack-layer l3">
+        <div class="layer-num">L3</div>
+        <div style="flex:1">
+          <div class="layer-title">Models</div>
+          <div class="layer-sub">Anthropic, OpenAI, Google — foundation model APIs</div>
+        </div>
+        <div class="layer-badge">← experimenting here</div>
+      </div>
+      <div class="stack-layer l2">
+        <div class="layer-num">L2</div>
+        <div style="flex:1">
+          <div class="layer-title">Tooling</div>
+          <div class="layer-sub">LangChain, evals, observability, prompt libraries</div>
+        </div>
+        <div class="layer-badge">← building toward</div>
+      </div>
+      <div class="stack-layer l1">
+        <div class="layer-num">L1</div>
+        <div>
+          <div class="layer-title">Applications</div>
+          <div class="layer-sub">ChatGPT, Copilot, products users touch</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 4: Temperature -->
+  <div class="slide" id="s4">
+    <div class="eyebrow">Key Insight #1</div>
+    <h2>Temperature controls conformity</h2>
+
+    <div style="width:100%;max-width:760px;margin-top:28px;">
+      <!-- Slider row -->
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;padding:16px 20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;">
+        <span style="font-size:12px;opacity:0.45;min-width:88px;">Prompt: "What is<br>France's capital?"</span>
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;opacity:0.4;margin-bottom:4px;"><span>Deterministic</span><span>Creative</span></div>
+          <input type="range" id="temp-slider" min="0" max="10" value="0" step="1" style="width:100%;">
+          <div style="display:flex;justify-content:space-between;font-size:10px;opacity:0.25;"><span>0.0</span><span>0.3</span><span>0.5</span><span>0.7</span><span>1.0</span></div>
+        </div>
+        <div style="text-align:center;min-width:52px;">
+          <div style="font-size:28px;font-weight:700;color:#a78bfa;" id="temp-display">0.0</div>
+          <div style="font-size:10px;opacity:0.4;">temp</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:20px;">
+        <!-- Left: token probability distribution -->
+        <div style="flex:1;padding:18px 20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;">
+          <div style="font-size:11px;opacity:0.4;margin-bottom:14px;letter-spacing:0.06em;text-transform:uppercase;">Next-token probability</div>
+          <div class="prob-bar-wrap">
+            <div class="prob-row"><span class="prob-token">"Paris"</span><div class="prob-track"><div class="prob-fill top" id="p0" style="width:97%"></div></div><span class="prob-pct" id="pp0">97%</span></div>
+            <div class="prob-row"><span class="prob-token">"France"</span><div class="prob-track"><div class="prob-fill" id="p1" style="width:1%"></div></div><span class="prob-pct" id="pp1">1%</span></div>
+            <div class="prob-row"><span class="prob-token">"the"</span><div class="prob-track"><div class="prob-fill" id="p2" style="width:1%"></div></div><span class="prob-pct" id="pp2">1%</span></div>
+            <div class="prob-row"><span class="prob-token">"Ah,"</span><div class="prob-track"><div class="prob-fill" id="p3" style="width:0%"></div></div><span class="prob-pct" id="pp3">0%</span></div>
+            <div class="prob-row"><span class="prob-token">"C'est"</span><div class="prob-track"><div class="prob-fill" id="p4" style="width:0%"></div></div><span class="prob-pct" id="pp4">0%</span></div>
+          </div>
+          <div id="dist-note" style="font-size:11px;color:#a78bfa;margin-top:14px;line-height:1.5;">Sharp peak → model always picks "Paris"</div>
+        </div>
+
+        <!-- Right: 3 runs at this temp -->
+        <div style="flex:1.2;padding:18px 20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;">
+          <div style="font-size:11px;opacity:0.4;margin-bottom:14px;letter-spacing:0.06em;text-transform:uppercase;">3 runs — same prompt, same model</div>
+          <div class="run-label">Run 1</div>
+          <div class="output-bubble" id="r1">The capital of France is Paris.</div>
+          <div class="run-label">Run 2</div>
+          <div class="output-bubble" id="r2">The capital of France is Paris.</div>
+          <div class="run-label">Run 3</div>
+          <div class="output-bubble" id="r3">The capital of France is Paris.</div>
+          <div id="runs-note" style="font-size:11px;opacity:0.4;margin-top:10px;line-height:1.5;">All runs identical — model always picks the same token</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 5: Cost -->
+  <div class="slide" id="s5">
+    <div class="eyebrow">Key Insight #2</div>
+    <h2>Cost is lower than you think — but it compounds</h2>
+    <div class="cost-grid">
+      <div class="cost-card claude">
+        <div class="cost-model">Claude haiku-4-5</div>
+        <div class="cost-price" style="color:#67e8f9;">$0.80</div>
+        <div class="cost-unit">per 1M input tokens</div>
+        <div class="bar-wrap"><div class="bar bar-claude"></div></div>
+        <div style="font-size:12px;opacity:0.4;margin-top:4px;">Output: $4.00/1M tokens</div>
+        <div class="cost-monthly" style="color:#67e8f9;">~$72/mo</div>
+        <div class="cost-note">30K calls · 500 in + 500 out tokens · 1000-user app</div>
+      </div>
+      <div class="cost-card openai">
+        <div class="cost-model">GPT-4o</div>
+        <div class="cost-price" style="color:#86efac;">$2.50</div>
+        <div class="cost-unit">per 1M input tokens</div>
+        <div class="bar-wrap"><div class="bar bar-oai"></div></div>
+        <div style="font-size:12px;opacity:0.4;margin-top:4px;">Output: $10.00/1M tokens</div>
+        <div class="cost-monthly" style="color:#86efac;">~$187/mo</div>
+        <div class="cost-note">Same scenario — 2.6× more expensive</div>
+      </div>
+    </div>
+    <div style="margin-top:24px;font-size:14px;color:rgba(232,230,240,0.45);text-align:center;">
+      All 10 experiments total: ~$1–2 &nbsp;·&nbsp; The barrier to experimenting is basically zero
+    </div>
+  </div>
+
+  <!-- Slide 6: Techniques -->
+  <div class="slide" id="s6">
+    <div class="eyebrow">Key Insight #3</div>
+    <h2>Prompting meaningfully shifts behavior</h2>
+    <div class="technique-grid">
+      <div class="technique-card">
+        <div class="technique-icon">🧭</div>
+        <div class="technique-name">System Prompts</div>
+        <div class="technique-def">Developer-set instructions loaded before every user message. Like an instructions.md file for the model.</div>
+        <div class="technique-finding">Adding "you are a customer support agent" changed response tone, scope, and escalation behavior — no retraining needed.</div>
+      </div>
+      <div class="technique-card">
+        <div class="technique-icon">🔗</div>
+        <div class="technique-name">Chain-of-Thought</div>
+        <div class="technique-def">Prompt the model to reason step-by-step before giving an answer.</div>
+        <div class="technique-finding">Claude showed implicit CoT even without explicit prompting. Explicit CoT forced visible reasoning in English prose.</div>
+      </div>
+      <div class="technique-card">
+        <div class="technique-icon">🔒</div>
+        <div class="technique-name">Hard Constraints</div>
+        <div class="technique-def">Specifying exact output format, type, or length in the prompt.</div>
+        <div class="technique-finding">GPT-4o was stricter — it refused floats when the prompt said "list of integers." Claude softened the constraint.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 7: Claude vs GPT-4o -->
+  <div class="slide" id="s7">
+    <div class="eyebrow">Key Insight #4</div>
+    <h2>Each model has a personality</h2>
+    <div class="compare-grid">
+      <div class="compare-card claude-card">
+        <div class="compare-model">Anthropic</div>
+        <div class="compare-name" style="color:#67e8f9;">Claude haiku-4-5</div>
+        <div class="compare-tag"><div class="tag-label">Style</div>Conversational, free-flowing</div>
+        <div class="compare-tag"><div class="tag-label">Strengths</div>Nuanced language, narrative tasks, long context</div>
+        <div class="compare-tag"><div class="tag-label">Watch out</div>Softens hard constraints; implicit CoT without being asked</div>
+        <div class="compare-tag"><div class="tag-label">Best for</div>Summarization, creative writing, reasoning at scale</div>
+        <div class="compare-tag"><div class="tag-label">Cost</div>2–3× cheaper across all task types</div>
+      </div>
+      <div class="compare-card oai-card">
+        <div class="compare-model">OpenAI</div>
+        <div class="compare-name" style="color:#86efac;">GPT-4o</div>
+        <div class="compare-tag"><div class="tag-label">Style</div>Structured, methodical, terse</div>
+        <div class="compare-tag"><div class="tag-label">Strengths</div>Strict output format adherence, type safety, code</div>
+        <div class="compare-tag"><div class="tag-label">Watch out</div>More conservative — sometimes over-escalates or hedges</div>
+        <div class="compare-tag"><div class="tag-label">Best for</div>JSON extraction, code generation, rule-following tasks</div>
+        <div class="compare-tag"><div class="tag-label">Cost</div>Higher — but worth it for precision-critical tasks</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 8: Next -->
+  <div class="slide" id="s8">
+    <div class="eyebrow">What's next</div>
+    <h2>Month 1: Prompt Engineering</h2>
+    <div class="next-card">
+      <div class="next-month">Month 1 / 6</div>
+      <div class="next-title">Building a prompt library<br>+ eval harness</div>
+      <div class="next-items">
+        <div class="next-item"><div class="next-dot"></div>Systematic prompting techniques (few-shot, CoT, role prompting)</div>
+        <div class="next-item"><div class="next-dot"></div>Automated eval harness to score prompt quality</div>
+        <div class="next-item"><div class="next-dot"></div>A/B testing prompts the same way we A/B test code</div>
+        <div class="next-item"><div class="next-dot"></div>Moving from Layer 3 experimentation → Layer 2 tooling</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div id="nav">
+  <button class="nav-btn" id="prev-btn" onclick="go(-1)" disabled>&#8592;</button>
+  <span id="slide-counter">1 / 8</span>
+  <button class="nav-btn" id="next-btn" onclick="go(1)">&#8594;</button>
+</div>
+
+<!-- Dots -->
+<div id="dots"></div>
+
+<script>
+  const TOTAL = 8;
+  let current = 1;
+
+  // Build dots
+  const dotsEl = document.getElementById('dots');
+  for (let i = 1; i <= TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 1 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  }
+
+  function goTo(n) {
+    if (n < 1 || n > TOTAL || n === current) return;
+    const prev = document.getElementById('s' + current);
+    prev.classList.add('exit');
+    prev.classList.remove('active');
+    setTimeout(() => prev.classList.remove('exit'), 350);
+    current = n;
+    const next = document.getElementById('s' + current);
+    next.classList.add('active');
+    updateUI();
+  }
+
+  function go(dir) { goTo(current + dir); }
+
+  function updateUI() {
+    document.getElementById('slide-counter').textContent = current + ' / ' + TOTAL;
+    document.getElementById('prev-btn').disabled = current === 1;
+    document.getElementById('next-btn').disabled = current === TOTAL;
+    document.getElementById('progress-bar').style.width = ((current / TOTAL) * 100) + '%';
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i + 1 === current);
+    });
+  }
+
+  // Keyboard nav
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') go(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') go(-1);
+  });
+
+  // Temperature slider
+  const slider = document.getElementById('temp-slider');
+  if (slider) {
+    // [paris%, france%, the%, ah%, cest%] at each temp step 0-10
+    const probs = [
+      [97,1,1,0,0],[94,3,2,0,0],[88,6,4,1,0],[78,10,7,3,1],[65,16,11,5,2],
+      [52,20,14,8,4],[42,23,17,11,6],[34,24,19,13,8],[27,24,21,16,11],[22,23,22,18,14],[18,22,22,20,17]
+    ];
+    const runs = [
+      [['The capital of France is Paris.','The capital of France is Paris.','The capital of France is Paris.'],
+       'All runs identical — model always picks the same token'],
+      [['The capital of France is Paris.','The capital of France is Paris.','Paris is the capital of France.'],
+       'Nearly identical — tiny variation in phrasing'],
+      [['The capital of France is Paris.','Paris is the capital of France.','France\'s capital is Paris.'],
+       'Same answer, different word order starting to appear'],
+      [['The capital of France is Paris.','Paris — France\'s iconic capital.','France\'s capital is Paris.'],
+       'Same core answer, style starting to diverge'],
+      [['The capital of France is Paris.','Paris is France\'s capital city.','France\'s capital? Paris, of course.'],
+       'Runs noticeably different in tone'],
+      [['The capital of France is Paris.','Paris serves as the heart of France.','France\'s storied capital is Paris.'],
+       'Diverging — each run has a distinct voice'],
+      [['Paris, city of light, is France\'s capital.','The capital of France is Paris.','Ah, France\'s beloved capital — Paris!'],
+       'High variety — same fact, very different delivery'],
+      [['Paris — crossroads of art and history — is France\'s capital.','C\'est Paris, the brilliant capital of France.','France\'s capital city is Paris, a global hub.'],
+       'Wide spread — any of several phrasings equally likely'],
+      [['Oh Paris, that luminous capital at France\'s heart.','The world-famous Paris reigns as France\'s capital.','Paris, where boulevards whisper history.'],
+       'Outputs diverge significantly run to run'],
+      [['C\'est Paris — ever-vibrant, utterly iconic.','Paris pulses at the heart of France as its capital.','Nestled along the Seine, Paris reigns supreme.'],
+       'Very unpredictable — model treats many tokens as equally viable'],
+      [['Paris — jewel of Europe, capital of France.','Any traveler knows Paris as France\'s glittering capital.','Paris, crossroads of civilizations, is France\'s capital.'],
+       'Maximum variety — distribution nearly flat']
+    ];
+    const distNotes = [
+      'Sharp peak → model always picks "Paris"',
+      'Still very peaked — near-deterministic',
+      'Small tail forming, but "Paris" dominates',
+      'Slight spread — alternatives starting to matter',
+      'Distribution softening — more tokens in play',
+      'Flatter curve — randomness meaningful now',
+      'Several tokens compete for each position',
+      'Wide distribution — outputs hard to predict',
+      'Very flat — almost any phrasing can win',
+      'Near-uniform — model treats all tokens similarly',
+      'Flat distribution — maximum randomness'
+    ];
+
+    slider.addEventListener('input', function() {
+      const v = parseInt(this.value);
+      document.getElementById('temp-display').textContent = (v / 10).toFixed(1);
+      const p = probs[v];
+      const tokens = ['p0','p1','p2','p3','p4'];
+      const pcts  = ['pp0','pp1','pp2','pp3','pp4'];
+      tokens.forEach((id, i) => {
+        document.getElementById(id).style.width = p[i] + '%';
+        document.getElementById(pcts[i]).textContent = p[i] + '%';
+      });
+      const [outputs, note] = runs[v];
+      document.getElementById('r1').textContent = outputs[0];
+      document.getElementById('r2').textContent = outputs[1];
+      document.getElementById('r3').textContent = outputs[2];
+      document.getElementById('runs-note').textContent = note;
+      document.getElementById('dist-note').textContent = distNotes[v];
+      const diverged = v >= 5;
+      ['r1','r2','r3'].forEach(id => {
+        document.getElementById(id).style.borderColor = diverged ? 'rgba(124,58,237,0.35)' : 'rgba(255,255,255,0.07)';
+      });
+    });
+  }
+
+  updateUI();
+</script>
+</body>
+</html>

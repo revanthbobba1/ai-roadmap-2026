@@ -1,7 +1,7 @@
 # Month 0: AI Landscape Explorer
 **Part of Rev's AI Engineer Roadmap 2026**
 
-> A Python script that calls Claude and GPT-4o in parallel, logs responses, token counts, and cost per call. The foundation for 10 structured LLM comparison experiments.
+> A Python script that calls Claude (haiku-4-5) and GPT-4o in parallel, logs responses, token counts, and cost per call. The foundation for 10 structured LLM comparison experiments.
 
 ---
 
@@ -13,9 +13,10 @@
 
 ## What this does
 
-- Calls Claude 3.5 Sonnet and GPT-4o with the same prompt **in parallel** (using asyncio)
+- Calls Claude haiku-4-5 and GPT-4o with the same prompt **in parallel** (using asyncio)
 - Logs every call to a structured JSON-lines file: model, response, tokens, cost, latency
-- Provides a template for running 10 comparison experiments (see `llm_comparison.md`)
+- Includes exponential backoff retry logic for rate limit errors
+- 10 named experiment functions — uncomment whichever you want to run in `main()`
 
 ---
 
@@ -23,8 +24,8 @@
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/[your-username]/ai-roadmap-m0-landscape
-cd ai-roadmap-m0-landscape
+git clone https://github.com/revanthbobba1/ai-roadmap-2026
+cd ai-roadmap-2026/m0-landscape
 
 # 2. Create and activate a virtual environment
 python -m venv .venv
@@ -45,17 +46,18 @@ python api_explorer.py
 
 ## What I learned
 
-_(fill this in after completing Month 0 experiments — write it in your own words)_
-
-- 
-- 
-- 
+- **API costs are surprisingly cheap.** Running all 10 experiments cost roughly $1 total. The barrier to experimenting is basically zero.
+- **LLMs don't pull from the internet at runtime.** Training is a one-time process on a static dataset. When a model answers a question, it's generating from learned patterns — not looking anything up. Hallucination happens because it's predicting plausible text, not retrieving facts.
+- **Temperature controls conformity, not just creativity.** Lower temperature = the model picks the highest-probability token more strictly. Higher temperature = more randomness. At temp=0, both models returned identical output every run.
+- **Rate limits and context limits are different things.** GPT-4o has a 128K context window, but my account's 30K TPM rate limit blocked requests long before hitting it. Hitting a rate limit doesn't mean the model can't handle more — it means the account tier can't.
+- **Prompting techniques meaningfully shift model behavior.** CoT (chain-of-thought) and system prompts make models more structured, literal, or thorough without any retraining. Precision in prompt wording matters — vague constraints get softened, explicit ones get followed.
+- **Response quality depends on context, not just output text.** The "better" response changes based on what the system can actually do, who the user is, and what they need. You can't judge LLM output in isolation.
 
 ---
 
 ## Cost
 
-Running all 10 experiments costs approximately $___. Each individual call is typically $0.001–$0.01 depending on prompt length and model.
+Running all 10 experiments costs approximately $1–2 total. Each individual call is typically $0.001–$0.01 depending on prompt length and model. Claude haiku-4-5 is consistently 2-3x cheaper than GPT-4o across all task types.
 
 ---
 
@@ -73,5 +75,11 @@ Running all 10 experiments costs approximately $___. Each individual call is typ
 
 ---
 
+## Full Analysis
+
+See [llm_comparison.md](./llm_comparison.md) for the complete write-up of all 10 experiments — findings, observations, and model recommendations based on real data.
+
+---
+
 ## Next: Month 1 — Prompt Engineering
-[github.com/[you]/ai-roadmap-m1-prompting] _(link when built)_
+_(link when built)_
