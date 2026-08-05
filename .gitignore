@@ -1,0 +1,12 @@
+# The public repo is the ai-roadmap-2026/ subtree only.
+# Everything else in this folder is private working material.
+
+CLAUDE.md
+ROADMAP_INSTRUCTIONS.md
+Interview_Prep/
+*.docx
+
+.DS_Store
+.venv/
+__pycache__/
+*.pyc

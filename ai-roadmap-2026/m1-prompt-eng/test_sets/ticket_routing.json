@@ -1,0 +1,82 @@
+[
+  {
+    "variables": { "ticket": "My invoice shows a charge I don't recognize" },
+    "expected": "BILLING"
+  },
+  {
+    "variables": { "ticket": "The dashboard won't load, I just get a spinner forever" },
+    "expected": "TECHNICAL"
+  },
+  {
+    "variables": { "ticket": "I need to change the email address on my profile" },
+    "expected": "ACCOUNT"
+  },
+  {
+    "variables": { "ticket": "Do you have an office in Chicago?" },
+    "expected": "OTHER"
+  },
+  {
+    "variables": { "ticket": "You billed me for the annual plan but I selected monthly" },
+    "expected": "BILLING"
+  },
+  {
+    "variables": { "ticket": "Export to CSV produces an empty file every time" },
+    "expected": "TECHNICAL"
+  },
+  {
+    "variables": { "ticket": "How do I add a teammate to my workspace?" },
+    "expected": "ACCOUNT"
+  },
+  {
+    "variables": { "ticket": "Requesting a refund for the duplicate transaction on 3/14" },
+    "expected": "BILLING"
+  },
+  {
+    "variables": { "ticket": "The mobile app force-closes on startup after the latest update" },
+    "expected": "TECHNICAL"
+  },
+  {
+    "variables": { "ticket": "I forgot which email I signed up with" },
+    "expected": "ACCOUNT"
+  },
+  {
+    "variables": { "ticket": "Are you hiring engineers right now?" },
+    "expected": "OTHER"
+  },
+  {
+    "variables": { "ticket": "My card was declined but the charge still shows as pending" },
+    "expected": "BILLING"
+  },
+  {
+    "variables": { "ticket": "API returns 500 on the /reports endpoint since this morning" },
+    "expected": "TECHNICAL"
+  },
+  {
+    "variables": { "ticket": "Please delete my account and all associated data" },
+    "expected": "ACCOUNT"
+  },
+  {
+    "variables": { "ticket": "Just wanted to say the new design looks great" },
+    "expected": "OTHER"
+  },
+  {
+    "variables": { "ticket": "Upgrading to the team plan didn't apply the discount code" },
+    "expected": "BILLING"
+  },
+  {
+    "variables": { "ticket": "Two-factor codes are arriving several minutes late" },
+    "expected": "TECHNICAL"
+  },
+  {
+    "variables": { "ticket": "Can I transfer ownership of the workspace to a colleague?" },
+    "expected": "ACCOUNT"
+  },
+  {
+    "variables": { "ticket": "What's your data retention policy?" },
+    "expected": "OTHER"
+  },
+  {
+    "variables": { "ticket": "I cancelled last month but was charged again yesterday" },
+    "expected": "BILLING"
+  }
+]

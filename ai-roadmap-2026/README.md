@@ -9,8 +9,8 @@
 
 | Month | Theme | Status | Live URL |
 |-------|-------|--------|----------|
-| [m0-landscape](./m0-landscape/) | Landscape & Python — API Explorer + LLM Comparison | 🔄 In Progress | — |
-| m1-prompting | Prompt Engineering — Prompt library + eval harness | ⬜ Not started | — |
+| [m0-landscape](./m0-landscape/) | Landscape & Python — API Explorer + LLM Comparison | ✅ Complete | — |
+| [m1-prompt-eng](./m1-prompt-eng/) | Prompt Engineering — Prompt library + eval harness | 🔄 In Progress | — |
 | m2-tool-use | Tool Use & Apps — Multi-tool CLI agent | ⬜ Not started | — |
 | m3-rag | RAG Systems — Personal RAG chatbot | ⬜ Not started | — |
 | m4-agents | Agents — Multi-agent workflow | ⬜ Not started | — |
