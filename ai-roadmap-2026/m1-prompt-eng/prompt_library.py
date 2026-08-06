@@ -112,6 +112,95 @@ TICKET_ROUTER_FEW_SHOT = PromptTemplate(
 )
 
 
+# ── Hard variant: a routing policy the model cannot infer ─────────────────────
+#
+# The first test set couldn't discriminate — every prompt scored 20/20, because
+# every ticket had a giveaway keyword. This variant encodes an ARBITRARY company
+# policy. Both readings of each rule are defensible; the company picked one, and
+# no amount of reasoning gets the model there:
+#
+#   Rule A  authentication issues (password, 2FA, SSO, login) -> ACCOUNT
+#           even though they read as TECHNICAL
+#   Rule B  any refund request -> OTHER for manual approval
+#           even though it reads as BILLING
+#   Rule C  ticket spanning two categories, or too vague -> OTHER
+#
+# Three templates below, identical task, differing only in HOW the policy is
+# conveyed: not at all, stated in prose, or demonstrated by example.
+
+_HARD_TASK = (
+    "Classify this support ticket into exactly one category: "
+    "BILLING, TECHNICAL, ACCOUNT, or OTHER.\n"
+    "Respond with only the category name.\n\n"
+    "Ticket: {ticket}"
+)
+
+# 1. No policy at all — the control. Should lose on convention cases.
+HARD_ZERO_SHOT = PromptTemplate(
+    name="hard_zero_shot",
+    template=_HARD_TASK,
+    variables=["ticket"],
+)
+
+# 2. Policy stated as prose rules.
+HARD_ZERO_SHOT_RULES = PromptTemplate(
+    name="hard_zero_shot_rules",
+    template=(
+        "Classify this support ticket into exactly one category: "
+        "BILLING, TECHNICAL, ACCOUNT, or OTHER.\n\n"
+        "Routing policy:\n"
+        "- Anything about passwords, two-factor codes, SSO, or logging in "
+        "goes to ACCOUNT, not TECHNICAL.\n"
+        "- Any request for a refund goes to OTHER for manual approval, "
+        "not BILLING.\n"
+        "- If a ticket spans two categories, or is too vague to place "
+        "confidently, use OTHER.\n\n"
+        "Respond with only the category name.\n\n"
+        "Ticket: {ticket}"
+    ),
+    variables=["ticket"],
+)
+
+# 2b. ABLATION of #2 — the phrases "not TECHNICAL" and "not BILLING" removed,
+#     everything else byte-identical. Isolates one question: did prose win
+#     because it STATED the rule, or because it NAMED the prior it was
+#     overriding? Rule C is unchanged (it never named a prior).
+HARD_ZERO_SHOT_RULES_ABLATED = PromptTemplate(
+    name="hard_zero_shot_rules_ablated",
+    template=(
+        "Classify this support ticket into exactly one category: "
+        "BILLING, TECHNICAL, ACCOUNT, or OTHER.\n\n"
+        "Routing policy:\n"
+        "- Anything about passwords, two-factor codes, SSO, or logging in "
+        "goes to ACCOUNT.\n"
+        "- Any request for a refund goes to OTHER for manual approval.\n"
+        "- If a ticket spans two categories, or is too vague to place "
+        "confidently, use OTHER.\n\n"
+        "Respond with only the category name.\n\n"
+        "Ticket: {ticket}"
+    ),
+    variables=["ticket"],
+)
+
+
+# 3. Same policy, demonstrated instead of stated.
+#    NOTE: none of these tickets appear in ticket_routing_hard.json. Overlap
+#    would be LEAKAGE — the model would have been shown the answer, and the
+#    score would be inflated and meaningless.
+HARD_FEW_SHOT = PromptTemplate(
+    name="hard_few_shot",
+    template=_HARD_TASK,
+    variables=["ticket"],
+    examples=[
+        ("My login keeps failing right after I reset the password", "ACCOUNT"),
+        ("Please issue a refund for the January invoice", "OTHER"),
+        ("The export button does nothing when I click it", "TECHNICAL"),
+        ("The invoice total doesn't match the plan I'm on", "BILLING"),
+        ("I was charged twice and now I can't sign in either", "OTHER"),
+    ],
+)
+
+
 # ── TODO Week 1 Day 3-4: role / persona prompting ─────────────────────────────
 # Build two versions of the same code-review prompt with different `role`
 # values, then run both against the same snippet and compare what each flags.
@@ -143,6 +232,10 @@ LIBRARY: dict[str, PromptTemplate] = {
     t.name: t for t in [
         TICKET_ROUTER_ZERO_SHOT,
         TICKET_ROUTER_FEW_SHOT,
+        HARD_ZERO_SHOT,
+        HARD_ZERO_SHOT_RULES,
+        HARD_ZERO_SHOT_RULES_ABLATED,
+        HARD_FEW_SHOT,
     ]
 }
 

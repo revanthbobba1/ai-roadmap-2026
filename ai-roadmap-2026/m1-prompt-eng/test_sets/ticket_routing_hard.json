@@ -1,0 +1,28 @@
+[
+  { "hardness": "noisy", "variables": { "ticket": "ok so the thing where u put in the numbers n it makes the report? ya that just spins forever now. worked tuesday" }, "expected": "TECHNICAL" },
+  { "hardness": "noisy", "variables": { "ticket": "theres an extra amount on my statement this month that i didnt agree to" }, "expected": "BILLING" },
+  { "hardness": "noisy", "variables": { "ticket": "the little wheel just keeps going round and round when i click the blue button" }, "expected": "TECHNICAL" },
+  { "hardness": "noisy", "variables": { "ticket": "why is the number bigger than last month, nothing changed on my end" }, "expected": "BILLING" },
+  { "hardness": "noisy", "variables": { "ticket": "everything was working till your update and now nothing works, im very frustrated, my whole team is blocked, this is unacceptable, we pay a lot for this every year and expect better" }, "expected": "TECHNICAL" },
+  { "hardness": "noisy", "variables": { "ticket": "i keep getting a msg saying somthing went wrong pls try again later but it never works later" }, "expected": "TECHNICAL" },
+  { "hardness": "noisy", "variables": { "ticket": "my statement doesnt match what the sales guy told me it would be when we signed" }, "expected": "BILLING" },
+  { "hardness": "noisy", "variables": { "ticket": "the thing wont let me put the file in. it says no." }, "expected": "TECHNICAL" },
+
+  { "hardness": "convention", "variables": { "ticket": "Two-factor authentication codes never arrive on my phone" }, "expected": "ACCOUNT" },
+  { "hardness": "convention", "variables": { "ticket": "SSO login redirects in a loop and never completes" }, "expected": "ACCOUNT" },
+  { "hardness": "convention", "variables": { "ticket": "Password reset emails land in spam every single time" }, "expected": "ACCOUNT" },
+  { "hardness": "convention", "variables": { "ticket": "Getting 'invalid credentials' even though the password is definitely correct" }, "expected": "ACCOUNT" },
+  { "hardness": "convention", "variables": { "ticket": "I'd like a refund for last month, the service was down for two days" }, "expected": "OTHER" },
+  { "hardness": "convention", "variables": { "ticket": "Please refund the duplicate charge from March 14" }, "expected": "OTHER" },
+  { "hardness": "convention", "variables": { "ticket": "Requesting a refund on the annual plan, we're switching providers" }, "expected": "OTHER" },
+  { "hardness": "convention", "variables": { "ticket": "Can I get my money back for the add-on I never ended up using?" }, "expected": "OTHER" },
+
+  { "hardness": "abstention", "variables": { "ticket": "I was double charged and now my login has stopped working" }, "expected": "OTHER" },
+  { "hardness": "abstention", "variables": { "ticket": "It's broken" }, "expected": "OTHER" },
+  { "hardness": "abstention", "variables": { "ticket": "Same problem as last time" }, "expected": "OTHER" },
+  { "hardness": "abstention", "variables": { "ticket": "The app is slow and also I think my plan is wrong" }, "expected": "OTHER" },
+  { "hardness": "abstention", "variables": { "ticket": "Need help" }, "expected": "OTHER" },
+  { "hardness": "abstention", "variables": { "ticket": "Following up on my previous ticket" }, "expected": "OTHER" },
+  { "hardness": "abstention", "variables": { "ticket": "Can't upload files and also want to add a teammate to the workspace" }, "expected": "OTHER" },
+  { "hardness": "abstention", "variables": { "ticket": "Question about the thing we discussed on the call" }, "expected": "OTHER" }
+]
