@@ -235,11 +235,174 @@ with the Month 0 pricing finding.
 
 ### Experiment 2 — Role / persona prompting
 
-**Task:**
-**Personas tested:**
+**Task:** Python code review. Two snippets, 5 planted defects each, severity
+spread from `critical` to `trivial`.
+**Templates:** identical user prompt, differing only in system prompt.
+
+- `code_review_neutral` — no role (control)
+- `code_review_strict` — senior staff engineer, pre-merge, flag every defect
+- `code_review_friendly` — warm mentor, lead with positives, keep them motivated
+
+Output is prose, so `exact_match` cannot score it. Built `checklist_scorer.py`
+(see Experiment 2b) instead.
+
+**Results (temperature 0.0, claude-haiku-4-5):**
+
+| Template | recall | critical recall | severity agreement | tokens out |
+|---|---|---|---|---|
+| `code_review_neutral` | 80% | 50% | 80% | 618 |
+| `code_review_strict` | **100%** | **100%** | 70% | 798 |
+| `code_review_friendly` | 60% | 50% | 67% | 531 |
+
+**Per-issue:**
+
+| issue | truth | neutral | strict | friendly |
+|---|---|---|---|---|
+| sql_injection | critical | ✓ critical | ✓ critical | ✓ critical |
+| bare_except | high | ✓ critical | ✓ high | ✓ medium |
+| mutable_default | high | ✓ high | ✓ high | ✓ medium |
+| none_deref | medium | ✓ high | ✓ medium | ✗ |
+| unused_import | trivial | ✓ trivial | ✓ trivial | ✗ |
+| no_validation | high | ✗ | ✓ high | ✗ |
+| float_money | high | ✗ | ✓ medium | ✗ |
+| print_side_effect | medium | ✓ medium | ✓ high | ✓ medium |
+| range_len | trivial | ✓ trivial | ✓ trivial | ✓ trivial |
+| naming | trivial | ✓ trivial | ✓ medium | ✓ trivial |
 
 **Observations:**
-_(fill in)_
+
+**Persona changes capability, not just tone.** The initial prediction — and the
+intuitive one — was that a persona shifts delivery while detection stays
+constant. False. Strict caught every planted defect; friendly missed four,
+including two `high`-severity bugs in `discount_calc` that would ship a money
+error (`no_validation` allows a discount over 100%, producing a negative total).
+
+**Friendly systematically under-rates severity.** Both `high` issues in
+`user_lookup` came back as medium. The instruction to keep the developer
+"feeling motivated" leaked from tone into risk assessment. Behind a
+severity-keyed merge gate, this persona ships defects the strict one blocks.
+
+**Friendly also fixed a bug it never reported.** Its refactor contains
+`if row:`, silently patching `none_deref` without ever describing it. For a
+persona whose stated purpose is mentoring, that's the worst outcome: the bug is
+gone and the developer learned nothing.
+
+**Cost favours strict.** 798 vs 531 output tokens — 50% more — for +40 points of
+recall and +50 of critical recall.
+
+**Strict's weakness is severity inflation** (70% agreement, lowest of the
+three): `naming` trivial→medium, `print_side_effect` medium→high. A reviewer who
+escalates everything conveys as little as one who escalates nothing. It also
+*under*-rated `float_money` (high→medium), so the inflation isn't uniform.
+
+---
+
+### Experiment 2a — Temperature as a confound (a retracted conclusion)
+
+The first run of this experiment was at the API default `temperature=0.7`.
+It produced:
+
+| | critical recall (temp 0.7) | critical recall (temp 0.0) |
+|---|---|---|
+| neutral | 75% | 50% |
+| strict | 75% | **100%** |
+| friendly | 75% | 50% |
+
+At 0.7 all three looked identical and the conclusion drawn was *"persona affects
+total recall but has no effect on the issues that matter."* At temperature 0 the
+personas differ by 50 points on exactly that metric.
+
+**Attribution caveat — three things changed between these runs**, not one:
+temperature 0.7→0.0, a severity rubric added to judge Question 2, and judge
+Question 1 tightened to reject silent fixes. Attributing the CRIT change to
+temperature alone is not demonstrated. What the evidence does support:
+
+- The rubric cannot move CRIT directly. `critical_recall` is computed from
+  `v.found` only; the rubric shapes the severity answer, not the found answer.
+- The Question 1 tightening *can* lower `found`, and plausibly explains neutral
+  and friendly dropping 75%→50%.
+- It cannot explain strict rising 75%→100%. A harsher judge cannot make a review
+  find more defects. Something changed review-side, and temperature was the only
+  review-side change.
+
+So temperature is *implicated but not isolated.* A clean ablation would rerun at
+0.7 with the current judge. Not done.
+
+**The methodological error, twice in one day:** changing several variables at
+once and then attributing the result to the most interesting-looking one. Same
+mistake as the `not TECHNICAL` claim in Experiment 1c — caught there by an
+ablation, caught here only by being challenged on it.
+
+`PromptTemplate.run()` now defaults to `temperature=0.0`; raising it is a
+deliberate act reserved for experiments where variance is the subject (Week 3
+self-consistency).
+
+**Reproducible ≠ representative.** Temperature 0 yields the single most-likely
+output — the prompt's best shot. A system deployed at 0.7 exposes users to the
+full range, including weaker draws. Two different questions:
+
+| question | how to evaluate |
+|---|---|
+| what is this prompt *capable* of? | temperature 0, one run |
+| what will users actually *get*? | production temperature, 5–10 runs, report the spread |
+
+Only the first was done here.
+
+**Corollary:** non-determinism also makes judge validation impossible. A judge
+verdict can't be checked against an output that no longer exists.
+
+---
+
+### Experiment 2b — Building a grounded LLM-as-judge
+
+Prose output can't be scored by string comparison. Two ways to use a model as
+the scorer:
+
+| approach | prompt | ground truth | bias exposure |
+|---|---|---|---|
+| holistic | "Rate this review 1–5 for thoroughness" | none | maximum |
+| **grounded** | "Here is one specific defect. Does this review identify it? YES/NO" | planted issue list | much lower |
+
+`checklist_scorer.py` implements the grounded form: one binary question per
+known defect. The judge never decides what "good" means — that was decided when
+`planted_issues` was written. It only checks presence.
+
+> An automated scorer is not more *correct* than a human. It is more
+> *consistent* and it *scales*. Its accuracy comes entirely from the ground
+> truth it's given.
+
+**Metrics:** `issue_recall`, `critical_recall` (restricted to critical+high — an
+80% recall that missed the SQL injection is worse than a 60% that caught it),
+`severity_agreement`.
+
+**Judge validation — the step that must come first.** A new judge gets checked
+against cases whose answers are already known, before being trusted on cases
+that aren't. Run against the `friendly`/`user_lookup` output, which had been
+read manually:
+
+| judge verdict | review text | correct |
+|---|---|---|
+| `sql_injection` ✓ critical | 🔴 Critical | ✅ |
+| `bare_except` ✓ medium | 🟡 | ✅ |
+| `mutable_default` ✓ medium | 🟡 | ✅ |
+| `none_deref` ✗ | only `if row:` in refactor, never described | ✅ |
+| `unused_import` ✗ | absent | ✅ |
+
+5/5, including the hard case — it refused to credit a silent fix, per an explicit
+instruction in the judge prompt.
+
+**Severity agreement was broken until the scale was defined.** First run:
+20–57% across every template. When every rater disagrees with your ground truth,
+the ground truth is the outlier. The real defect was that "trivial" and "medium"
+were never *defined* — the judge was mapping the review's colour-coding onto an
+undefined scale and inventing the difference. Adding a rubric keyed to
+consequence (`critical` = exploitable / `high` = wrong behaviour in normal use /
+`medium` = conditional or maintainability / `trivial` = no behavioural impact)
+moved agreement to 67–80%.
+
+**Blind spot found:** `float_money` was missed by all three personas in the
+temp-0.7 run. No prompt-level persona change surfaces it — it needs the defect
+class named explicitly, or a different model.
 
 ---
 

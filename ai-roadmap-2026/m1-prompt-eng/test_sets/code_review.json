@@ -1,0 +1,28 @@
+[
+  {
+    "name": "user_lookup",
+    "variables": {
+      "code": "import os\nimport json\n\ndef get_user(db, user_id, tags=[]):\n    query = \"SELECT * FROM users WHERE id = '%s'\" % user_id\n    try:\n        row = db.execute(query).fetchone()\n    except:\n        return None\n    tags.append(row['tag'])\n    return {'user': row, 'tags': tags}\n"
+    },
+    "planted_issues": [
+      { "id": "sql_injection", "severity": "critical", "desc": "String-formatted SQL query — injection vector. Should use parameterized query." },
+      { "id": "bare_except", "severity": "high", "desc": "Bare `except:` swallows every error including KeyboardInterrupt, and hides the real failure." },
+      { "id": "mutable_default", "severity": "high", "desc": "`tags=[]` mutable default argument — the list persists across calls and accumulates." },
+      { "id": "none_deref", "severity": "medium", "desc": "`row` may be None if no match; `row['tag']` then raises TypeError." },
+      { "id": "unused_import", "severity": "trivial", "desc": "`os` and `json` are imported but never used. No behavioural impact." }
+    ]
+  },
+  {
+    "name": "discount_calc",
+    "variables": {
+      "code": "def calc(items, discount_pct, TAX=0.08):\n    total = 0\n    for i in range(len(items)):\n        total = total + items[i]['price'] * items[i]['qty']\n    d = total * (discount_pct / 100)\n    final = (total - d) * (1 + TAX)\n    print('final: ' + str(final))\n    return round(final, 2)\n"
+    },
+    "planted_issues": [
+      { "id": "no_validation", "severity": "high", "desc": "`discount_pct` is unvalidated — a value over 100 produces a negative total." },
+      { "id": "float_money", "severity": "high", "desc": "Float arithmetic on currency accumulates rounding error. Should use Decimal." },
+      { "id": "print_side_effect", "severity": "medium", "desc": "`print` inside a calculation function — side effect in pure logic, should be logging or removed." },
+      { "id": "range_len", "severity": "trivial", "desc": "`for i in range(len(items))` — unpythonic, should iterate directly. No behavioural impact." },
+      { "id": "naming", "severity": "trivial", "desc": "`TAX` is uppercase but is a parameter, not a constant; `d` and `calc` are uninformative names. No behavioural impact." }
+    ]
+  }
+]

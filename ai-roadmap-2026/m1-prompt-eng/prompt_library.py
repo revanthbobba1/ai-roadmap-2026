@@ -74,11 +74,23 @@ class PromptTemplate:
     def system_prompt(self) -> str:
         return self.role or "You are a helpful assistant."
 
-    async def run(self, model: str = "claude", **kwargs):
-        """Render this template and send it to a model."""
+    async def run(self, model: str = "claude", temperature: float = 0.0, **kwargs):
+        """
+        Render this template and send it to a model.
+
+        temperature defaults to 0.0, NOT the API default of 0.7. Evaluation runs
+        must be reproducible: at 0.7 every run produces a different output, so a
+        score change could be a real regression or just resampling noise, and
+        you cannot tell which. It also makes judge validation impossible — you
+        can't check a judge against an output that no longer exists.
+
+        Raise it deliberately when variance is the thing being studied
+        (self-consistency in Week 3), never by accident.
+        """
         rendered = self.render(**kwargs)
         caller = call_claude if model == "claude" else call_openai
-        return await caller(rendered, system_prompt=self.system_prompt())
+        return await caller(rendered, system_prompt=self.system_prompt(),
+                            temperature=temperature)
 
 
 # ── Worked example: ticket routing, zero-shot vs. few-shot ────────────────────
@@ -201,17 +213,48 @@ HARD_FEW_SHOT = PromptTemplate(
 )
 
 
-# ── TODO Week 1 Day 3-4: role / persona prompting ─────────────────────────────
-# Build two versions of the same code-review prompt with different `role`
-# values, then run both against the same snippet and compare what each flags.
+# ── Role / persona prompting ──────────────────────────────────────────────────
 #
-# CODE_REVIEW_STRICT = PromptTemplate(
-#     name="code_review_strict",
-#     template="Review this code:\n\n{code}",
-#     variables=["code"],
-#     role="You are a senior code reviewer. Be rigorous and flag every issue.",
-# )
-# CODE_REVIEW_FRIENDLY = PromptTemplate(... role="You are a friendly mentor ...")
+# Three templates, identical task and identical user prompt. The ONLY difference
+# is the `role`, which becomes the system prompt — Anthropic takes it as a
+# top-level `system` field, OpenAI as a first message with role="system".
+#
+# code_review_neutral is the CONTROL. Without it there's no way to tell whether
+# a persona changed anything, or whether the model would have done that anyway.
+#
+# Unlike ticket routing, the output here is prose. There is no string to compare
+# against, so exact_match cannot score it — which is the point of this exercise.
+
+_REVIEW_TASK = "Review this Python code and report any problems you find.\n\n{code}"
+
+CODE_REVIEW_NEUTRAL = PromptTemplate(
+    name="code_review_neutral",
+    template=_REVIEW_TASK,
+    variables=["code"],
+    role=None,   # control — falls back to "You are a helpful assistant."
+)
+
+CODE_REVIEW_STRICT = PromptTemplate(
+    name="code_review_strict",
+    template=_REVIEW_TASK,
+    variables=["code"],
+    role=(
+        "You are a senior staff engineer conducting a rigorous pre-merge code "
+        "review. You are accountable for what ships. Be exacting and direct. "
+        "Flag every defect you find, including minor ones."
+    ),
+)
+
+CODE_REVIEW_FRIENDLY = PromptTemplate(
+    name="code_review_friendly",
+    template=_REVIEW_TASK,
+    variables=["code"],
+    role=(
+        "You are a warm, encouraging mentor helping a junior developer grow. "
+        "Lead with what they did well. Keep the tone supportive and make sure "
+        "they finish the review feeling motivated rather than discouraged."
+    ),
+)
 
 
 # ── TODO Week 3: CoT and self-consistency ─────────────────────────────────────
@@ -236,6 +279,9 @@ LIBRARY: dict[str, PromptTemplate] = {
         HARD_ZERO_SHOT_RULES,
         HARD_ZERO_SHOT_RULES_ABLATED,
         HARD_FEW_SHOT,
+        CODE_REVIEW_NEUTRAL,
+        CODE_REVIEW_STRICT,
+        CODE_REVIEW_FRIENDLY,
     ]
 }
 
