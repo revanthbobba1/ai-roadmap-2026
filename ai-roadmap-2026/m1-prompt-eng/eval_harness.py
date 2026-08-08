@@ -59,6 +59,7 @@ class CaseResult:
     latency_ms: int
     errored: bool = False   # True = the call never reached the model
     hardness: str = ""      # optional tag for per-category breakdown
+    raw_format: str = ""    # "bare" | "fenced" | "prose" — format compliance
     note: str = ""
 
 
@@ -200,6 +201,31 @@ SCORERS = {
 }
 
 
+def classify_format(raw: str) -> str:
+    """
+    Classify the SHAPE of a response, independent of whether its content is
+    correct. Returns "bare" | "fenced" | "prose".
+
+    This exists because json_match deliberately strips markdown fences before
+    comparing — the right call for measuring extraction accuracy, but it makes
+    format compliance invisible. A fenced response scores 100% while violating
+    an explicit "no code fences" instruction.
+
+    Two separate questions, two separate metrics:
+      json_match      did it extract the right data?
+      format_clean    did it obey the format instruction?
+
+    Conflating them is how you conclude a prompt "works" when half its output
+    needs downstream cleanup.
+    """
+    s = raw.strip()
+    if s.startswith("```"):
+        return "fenced"
+    if s.startswith("{") and s.endswith("}"):
+        return "bare"
+    return "prose"
+
+
 # TODO Week 4 Day 3-4: LLM-as-judge scorer
 #
 # async def llm_judge(actual: str, expected: str, rubric: str) -> tuple[bool, float, str]:
@@ -265,6 +291,7 @@ async def run_eval(
             latency_ms=resp.latency_ms,
             errored=False,
             hardness=case.get("hardness", ""),
+            raw_format=classify_format(resp.response),
             note=note,
         ))
 
@@ -332,6 +359,18 @@ async def compare_templates(names: list[str], test_set_path: str,
         print(f"{r.template_name:<32}{r.passed}/{r.total_cases:<10}"
               f"{r.mean_score:<8.2f}${r.total_cost_usd:.6f}")
 
+    # Format compliance — separate axis from correctness. A prompt can extract
+    # perfect data while ignoring every formatting instruction it was given.
+    fmts = {r.raw_format for run in runs for r in run.results if r.raw_format}
+    if fmts - {"bare"}:
+        print(f"\n{'RAW FORMAT':<32}{'bare':<10}{'fenced':<10}{'prose':<10}")
+        for run in runs:
+            counts = {f: sum(1 for r in run.results if r.raw_format == f)
+                      for f in ("bare", "fenced", "prose")}
+            n = len(run.results)
+            print(f"{run.template_name:<32}"
+                  + "".join(f"{counts[f]}/{n:<8}" for f in ("bare", "fenced", "prose")))
+
     # Per-hardness breakdown — the aggregate hides WHICH kind of hard case a
     # prompt handles. A prompt can win overall while losing badly on one class.
     tags = sorted({r.hardness for run in runs for r in run.results if r.hardness})
@@ -372,19 +411,19 @@ async def main():
     #     model=MODEL, scorer="exact_match",
     # )
 
-    # Math word problems — direct answer vs chain-of-thought
-    await compare_templates(
-        ["math_direct", "math_cot"],
-        "test_sets/math_word_problems.json",
-        model=MODEL, scorer="numeric_match",
-    )
+    # Math word problems (Experiment 6) — done
+    # await compare_templates(
+    #     ["math_direct", "math_cot"],
+    #     "test_sets/math_word_problems.json",
+    #     model=MODEL, scorer="numeric_match",
+    # )
 
     # Entity extraction — plain vs strict "no markdown fences" instruction
-    # await compare_templates(
-    #     ["extract_plain", "extract_strict"],
-    #     "test_sets/entity_extraction.json",
-    #     model=MODEL, scorer="json_match",
-    # )
+    await compare_templates(
+        ["extract_plain", "extract_strict"],
+        "test_sets/entity_extraction.json",
+        model=MODEL, scorer="json_match",
+    )
 
 
 if __name__ == "__main__":

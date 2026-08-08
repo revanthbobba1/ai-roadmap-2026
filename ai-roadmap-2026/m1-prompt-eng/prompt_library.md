@@ -408,11 +408,73 @@ class named explicitly, or a different model.
 
 ### Experiment 3 — Structured output extraction
 
-**Schema:**
-**First-try parse rate — Claude:** ___% **GPT-4o:** ___%
+**Task:** Extract order details into a 5-field JSON schema (`order_id`,
+`customer`, `date`, `quantity`, `unit_price`), 12 cases stratified
+`clean / reordered / missing_field / distractor`.
+
+- `extract_plain` — schema only
+- `extract_strict` — schema + *"Return ONLY the raw JSON object. No markdown
+  code fences, no commentary, no preamble."*
+
+**Scorer:** `json_match` — parses both sides, ignores key order, gives partial
+credit per field. Deliberately strips markdown fences before comparing, since
+penalising fences would measure formatting rather than extraction. That made a
+second metric necessary.
+
+| Template | Passed | Mean | Cost |
+|---|---|---|---|
+| `extract_plain` | 12/12 | 1.00 | $0.004366 |
+| `extract_strict` | 12/12 | 1.00 | $0.004586 |
+
+| By hardness | clean | reordered | missing_field | distractor |
+|---|---|---|---|---|
+| both templates | 3/3 | 3/3 | 3/3 | 3/3 |
+
+**Raw format compliance:**
+
+| Template | bare | fenced | prose |
+|---|---|---|---|
+| `extract_plain` | 0/12 | **12/12** | 0/12 |
+| `extract_strict` | 0/12 | **12/12** | 0/12 |
 
 **Observations:**
-_(fill in)_
+
+**Extraction itself is solved.** Perfect across every category. `missing_field`
+is the notable one — three cases have a genuinely absent value and the schema
+says emit `null`. Predicted the model might invent a value to satisfy the
+schema; it did not, every time. No hallucination under schema pressure.
+`distractor` also clean: it never grabbed the referenced-but-wrong order number,
+or the sales rep's name instead of the customer's.
+
+**The format instruction had zero effect.** 24 of 24 responses fenced, including
+all 12 from the template explicitly forbidding fences. Not reduced — unchanged.
+This quantifies the Month 0 observation.
+
+**Contrast with Experiment 1b, which is the interesting part.** There, a prose
+rule overrode a prior strong enough to produce *below-chance* scoring (1/8 →
+8/8). Here an equally explicit prose rule moved nothing. Same technique,
+opposite outcome.
+
+Hypothesis (untested): the routing prior is a **judgment** — which category does
+this belong to — and stateable rules can redirect judgment. Fencing is a
+**surface-form generation habit**, learned from a training corpus in which
+essentially every code block is fenced. Closer to reflex than belief.
+
+**Some behaviours cannot be prompted away.** This is the argument for Week 2.
+The fix is not a better instruction but a mechanism that makes non-conforming
+output impossible:
+
+| approach | what it does |
+|---|---|
+| constrained decoding | restricts emittable tokens; output is guaranteed to parse |
+| tool calling | model returns a structured call, not prose containing JSON |
+| retry-on-invalid | catch the parse failure in code, re-prompt with the error |
+| strip downstream | what `json_match` does — works, but a patch that breaks on the first unanticipated format |
+
+**Eval note:** accuracy tied at ceiling *and* format tied at floor, so neither
+metric separates these two prompts. The strict instruction is 20 tokens of
+prompt with no measurable effect on anything — a template to delete rather than
+keep.
 
 ---
 
