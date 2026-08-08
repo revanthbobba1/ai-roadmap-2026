@@ -109,6 +109,97 @@ def exact_match(actual: str, expected: str) -> tuple[bool, float, str]:
     return (a == e), (1.0 if a == e else 0.0), ""
 
 
+def numeric_match(actual: str, expected: str) -> tuple[bool, float, str]:
+    """
+    Compare the model's final number against the expected one.
+
+    Needed because a chain-of-thought prompt returns paragraphs of working
+    followed by "ANSWER: 18". Scoring that with exact_match would mark every
+    correct CoT answer wrong — and the harness would report a real-looking 0%
+    that is entirely an artifact of the scorer.
+
+    Strategy: take the number after "ANSWER:" if present, else the last number
+    in the response. Strips $ , % and trailing periods.
+    """
+    import re as _re
+
+    def _nums(s: str) -> list[str]:
+        return _re.findall(r"-?\d+(?:\.\d+)?", s.replace(",", "").replace("$", ""))
+
+    m = _re.search(r"ANSWER:\s*\$?(-?\d+(?:\.\d+)?)", actual, _re.I)
+    if m:
+        got = m.group(1)
+    else:
+        found = _nums(actual)
+        if not found:
+            return False, 0.0, "no number found in response"
+        got = found[-1]
+
+    want = _nums(expected)
+    if not want:
+        return False, 0.0, "no number in expected value"
+
+    try:
+        ok = abs(float(got) - float(want[0])) < 1e-6
+    except ValueError:
+        return False, 0.0, f"unparseable number: {got!r}"
+    return ok, (1.0 if ok else 0.0), "" if ok else f"got {got}, want {want[0]}"
+
+
+def json_match(actual: str, expected: str) -> tuple[bool, float, str]:
+    """
+    Parse both sides and compare as objects, so key order and whitespace don't
+    matter. Numbers compare by value: 4.5 == 4.50, and 3 == 3.0.
+
+    Strips markdown code fences first. Month 0 established that both models wrap
+    JSON in ```json fences regardless of instructions — a deeply trained habit
+    from GitHub and Stack Overflow. Penalising that here would measure the
+    fences, not the extraction.
+
+    Returns partial credit: fraction of keys correct. Binary pass/fail on a
+    5-field schema throws away most of the signal — "got 4 of 5 fields" and
+    "produced garbage" are very different failures.
+    """
+    import re as _re
+
+    def _parse(s: str):
+        s = s.strip()
+        s = _re.sub(r"^```(?:json)?\s*", "", s)
+        s = _re.sub(r"\s*```$", "", s)
+        m = _re.search(r"\{.*\}", s, _re.S)
+        if not m:
+            return None
+        try:
+            return json.loads(m.group(0))
+        except json.JSONDecodeError:
+            return None
+
+    got, want = _parse(actual), _parse(expected)
+    if want is None:
+        return False, 0.0, "expected value is not valid JSON"
+    if got is None:
+        return False, 0.0, "response did not parse as JSON"
+
+    def _eq(a, b):
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            return abs(float(a) - float(b)) < 1e-9
+        if isinstance(a, str) and isinstance(b, str):
+            return a.strip() == b.strip()
+        return a == b
+
+    correct = sum(1 for k, v in want.items() if k in got and _eq(got[k], v))
+    score = correct / len(want)
+    wrong = [k for k, v in want.items() if not (k in got and _eq(got[k], v))]
+    return (score == 1.0), score, "" if not wrong else f"wrong/missing: {wrong}"
+
+
+SCORERS = {
+    "exact_match": exact_match,
+    "numeric_match": numeric_match,
+    "json_match": json_match,
+}
+
+
 # TODO Week 4 Day 3-4: LLM-as-judge scorer
 #
 # async def llm_judge(actual: str, expected: str, rubric: str) -> tuple[bool, float, str]:
@@ -158,10 +249,10 @@ async def run_eval(
             ))
             continue
 
-        if scorer == "exact_match":
-            passed, score, note = exact_match(resp.response, case["expected"])
-        else:
-            raise NotImplementedError(f"Scorer '{scorer}' not built yet — see TODO")
+        if scorer not in SCORERS:
+            raise NotImplementedError(
+                f"Unknown scorer {scorer!r}. Have: {list(SCORERS)}")
+        passed, score, note = SCORERS[scorer](resp.response, case["expected"])
 
         results.append(CaseResult(
             case_id=i,
@@ -214,13 +305,15 @@ def save_eval_run(run: EvalRun, log_dir: str = "logs"):
 
 # ── Comparing prompt versions ─────────────────────────────────────────────────
 
-async def compare_templates(names: list[str], test_set_path: str, model: str = "claude"):
+async def compare_templates(names: list[str], test_set_path: str,
+                            model: str = "claude", scorer: str = "exact_match"):
     """
     Run several prompt versions against the same test set and print a scoreboard.
     This is the regression test: did your 'improvement' actually move the number?
     """
     try:
-        runs = [await run_eval(n, test_set_path, model=model) for n in names]
+        runs = [await run_eval(n, test_set_path, model=model, scorer=scorer)
+                for n in names]
     except EvalRunError as e:
         # Print no scoreboard at all. A scoreboard implies the numbers mean
         # something; here they don't.
@@ -271,12 +364,27 @@ async def main():
     # why PromptTemplate records tuned_for.
     MODEL = "claude"
 
+    # Ticket routing (Experiment 1) — done, kept for regression reruns
+    # await compare_templates(
+    #     ["hard_zero_shot", "hard_zero_shot_rules",
+    #      "hard_zero_shot_rules_ablated", "hard_few_shot"],
+    #     "test_sets/ticket_routing_hard.json",
+    #     model=MODEL, scorer="exact_match",
+    # )
+
+    # Math word problems — direct answer vs chain-of-thought
     await compare_templates(
-        ["hard_zero_shot", "hard_zero_shot_rules",
-         "hard_zero_shot_rules_ablated", "hard_few_shot"],
-        "test_sets/ticket_routing_hard.json",
-        model=MODEL,
+        ["math_direct", "math_cot"],
+        "test_sets/math_word_problems.json",
+        model=MODEL, scorer="numeric_match",
     )
+
+    # Entity extraction — plain vs strict "no markdown fences" instruction
+    # await compare_templates(
+    #     ["extract_plain", "extract_strict"],
+    #     "test_sets/entity_extraction.json",
+    #     model=MODEL, scorer="json_match",
+    # )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,21 @@
+[
+  { "hardness": "1step", "variables": { "problem": "A shirt costs $24. It is on sale for 25% off. What is the sale price?" }, "expected": "18" },
+  { "hardness": "1step", "variables": { "problem": "A train travels 180 miles in 3 hours. What is its average speed in miles per hour?" }, "expected": "60" },
+  { "hardness": "1step", "variables": { "problem": "A recipe needs 3 eggs per batch. How many eggs are needed for 7 batches?" }, "expected": "21" },
+  { "hardness": "1step", "variables": { "problem": "A box holds 48 pencils. If 12 are removed, how many remain?" }, "expected": "36" },
+
+  { "hardness": "2step", "variables": { "problem": "Maya buys 4 notebooks at $3 each and 2 pens at $1.50 each. She pays with a $20 bill. How much change does she get?" }, "expected": "5" },
+  { "hardness": "2step", "variables": { "problem": "A tank holds 200 litres. It is 40% full. If 30 litres are added, how many litres are in the tank?" }, "expected": "110" },
+  { "hardness": "2step", "variables": { "problem": "A team played 25 games and won 60% of them. How many games did they lose?" }, "expected": "10" },
+  { "hardness": "2step", "variables": { "problem": "A book has 320 pages. Ravi reads 40 pages a day for 5 days. How many pages are left?" }, "expected": "120" },
+
+  { "hardness": "multistep", "variables": { "problem": "A store buys widgets for $8 each and sells them for $14. Last month it sold 150 widgets but had to refund 12 of them at the full sale price. What was the store's total profit last month?" }, "expected": "732" },
+  { "hardness": "multistep", "variables": { "problem": "Three friends split a $180 dinner bill evenly. One of them had a $30 coupon applied to the total before splitting. Then each person adds a $6 tip. How much does each person pay in total?" }, "expected": "56" },
+  { "hardness": "multistep", "variables": { "problem": "A factory produces 240 units per day. 5% are defective and discarded. The rest are packed 12 per box. How many full boxes are produced in a day?" }, "expected": "19" },
+  { "hardness": "multistep", "variables": { "problem": "Sam drives 120 km at 60 km/h, then stops for 30 minutes, then drives another 90 km at 45 km/h. How many hours does the whole trip take?" }, "expected": "4.5" },
+
+  { "hardness": "trap", "variables": { "problem": "A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost in cents?" }, "expected": "5" },
+  { "hardness": "trap", "variables": { "problem": "If it takes 5 machines 5 minutes to make 5 widgets, how many minutes would it take 100 machines to make 100 widgets?" }, "expected": "5" },
+  { "hardness": "trap", "variables": { "problem": "A lily pad patch doubles in size every day. It covers the whole lake on day 48. On what day did it cover half the lake?" }, "expected": "47" },
+  { "hardness": "trap", "variables": { "problem": "A shop raises a $100 item by 10%, then discounts the new price by 10%. What is the final price in dollars?" }, "expected": "99" }
+]

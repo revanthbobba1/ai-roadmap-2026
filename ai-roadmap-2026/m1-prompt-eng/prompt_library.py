@@ -268,6 +268,78 @@ CODE_REVIEW_FRIENDLY = PromptTemplate(
 #     ...  # majority vote over parsed answers
 
 
+# ── Task type 3: math word problems ───────────────────────────────────────────
+#
+# Chosen because it sets up Week 3. CoT and self-consistency need a task where
+# reasoning can actually fail — classification is too shallow to show a gain.
+#
+# Test set is stratified 1step / 2step / multistep / trap. The traps are the
+# classic ones (bat-and-ball, lily pad, 5 machines) where the intuitive answer
+# is wrong — that's where CoT should earn its tokens, if it earns them anywhere.
+#
+# Answers are bare numbers so exact_match works with no new scorer.
+
+_MATH_TASK = "{problem}"
+_MATH_FORMAT = "\n\nRespond with only the final number. No units, no working, no explanation."
+
+MATH_DIRECT = PromptTemplate(
+    name="math_direct",
+    template=_MATH_TASK + _MATH_FORMAT,
+    variables=["problem"],
+)
+
+MATH_COT = PromptTemplate(
+    name="math_cot",
+    template=(
+        _MATH_TASK +
+        "\n\nWork through this step by step, then give your final answer on the "
+        "last line in the form:\nANSWER: <number>"
+    ),
+    variables=["problem"],
+)
+
+
+# ── Task type 4: structured entity extraction ─────────────────────────────────
+#
+# Sets up Week 2 — Pydantic validation, retry-on-invalid, and tool calling all
+# need a task whose output has a schema.
+#
+# Stratified clean / reordered / missing_field / distractor. The interesting
+# categories are the last two: missing_field tests whether the model invents a
+# value rather than emitting null (hallucination under schema pressure), and
+# distractor tests whether it grabs the first number it sees.
+
+_EXTRACT_SCHEMA = (
+    "Extract the order details as JSON with exactly these keys:\n"
+    "  order_id    string, digits only, no '#'\n"
+    "  customer    string, the buying customer (not a sales rep)\n"
+    "  date        string, ISO format YYYY-MM-DD\n"
+    "  quantity    integer\n"
+    "  unit_price  number, price per single unit\n\n"
+    "Use null for any field not stated in the text. Do not guess.\n\n"
+    "Text: {text}"
+)
+
+EXTRACT_PLAIN = PromptTemplate(
+    name="extract_plain",
+    template=_EXTRACT_SCHEMA,
+    variables=["text"],
+)
+
+# "Return ONLY raw JSON" is here deliberately. Month 0 found both models wrap
+# JSON in markdown fences regardless — a training-data habit from GitHub and
+# Stack Overflow. Week 2 replaces this plea with actual schema enforcement.
+EXTRACT_STRICT = PromptTemplate(
+    name="extract_strict",
+    template=(
+        _EXTRACT_SCHEMA +
+        "\n\nReturn ONLY the raw JSON object. No markdown code fences, no "
+        "commentary, no preamble."
+    ),
+    variables=["text"],
+)
+
+
 # ── Registry ──────────────────────────────────────────────────────────────────
 # Central lookup so the eval harness can fetch templates by name.
 
@@ -282,6 +354,10 @@ LIBRARY: dict[str, PromptTemplate] = {
         CODE_REVIEW_NEUTRAL,
         CODE_REVIEW_STRICT,
         CODE_REVIEW_FRIENDLY,
+        MATH_DIRECT,
+        MATH_COT,
+        EXTRACT_PLAIN,
+        EXTRACT_STRICT,
     ]
 }
 

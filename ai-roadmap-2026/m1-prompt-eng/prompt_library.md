@@ -438,15 +438,50 @@ _(fill in)_
 
 ### Experiment 6 — Chain-of-thought
 
-**Task:**
+**Task:** Math word problems, 16 cases stratified `1step / 2step / multistep /
+trap`. Traps are the classic counterintuitive ones (bat-and-ball, lily pad,
+5 machines).
+**Scorer:** `numeric_match` — extracts the final number, since CoT returns
+working followed by `ANSWER: <n>`. Scoring that with `exact_match` would mark
+every correct CoT answer wrong and report a 0% that is purely a scorer artifact.
 
-| Version | Accuracy | Tokens out | Cost |
+| Version | Passed | Mean | Cost |
 |---|---|---|---|
-| Direct answer | | | |
-| CoT | | | |
+| `math_direct` | 13/16 | 0.81 | $0.001150 |
+| `math_cot` | **16/16** | **1.00** | $0.010762 (**9.4×**) |
+
+**By hardness:**
+
+| | 1step | 2step | multistep | trap |
+|---|---|---|---|---|
+| direct | 4/4 | 3/4 | **2/4** | **4/4** |
+| CoT | 4/4 | 4/4 | 4/4 | 4/4 |
 
 **Observations:**
-_(fill in)_
+
+**Human-hard and model-hard are different things.** Direct answered every trap
+correctly — the problems specifically designed to defeat intuition — while
+failing half the multistep problems, which are conceptually trivial. The traps
+are famous enough to be effectively memorised from training data; the model
+isn't reasoning past the intuition, it's recalling the answer. What actually
+breaks a model is *depth of sequential computation*.
+
+**Why CoT works — autoregression.** Generation is token by token, and each
+generated token becomes input for the next. Writing "24 × 0.25 = 6" puts that
+intermediate result into the context, so the next step conditions on it. Without
+CoT the model must jump question→answer in a single forward pass. CoT buys
+**test-time compute**: more output tokens means more computation per problem.
+It doesn't make the model smarter, it gives it more steps to think in.
+
+**CoT bought nothing on easy problems and cost 9.4× anyway.** 4/4 both ways on
+1step. All of CoT's value came from 2step and multistep. That points at adaptive
+compute as the production pattern: classify difficulty first, route simple
+queries to direct and hard ones to CoT, rather than paying the CoT tax on every
+request.
+
+**Method note:** all three pre-registered predictions held — CoT ≥ direct, traps
+not actually hard for the model, cost multiple 5–10×. First experiment this
+month where the prediction survived contact with the data.
 
 ---
 

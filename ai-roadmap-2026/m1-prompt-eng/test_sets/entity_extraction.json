@@ -1,0 +1,65 @@
+[
+  {
+    "hardness": "clean",
+    "variables": { "text": "Order #4417 was placed by Dana Kim on 2026-03-04 for 3 units at $19.99 each." },
+    "expected": "{\"order_id\": \"4417\", \"customer\": \"Dana Kim\", \"date\": \"2026-03-04\", \"quantity\": 3, \"unit_price\": 19.99}"
+  },
+  {
+    "hardness": "clean",
+    "variables": { "text": "Order #9002 was placed by Luis Ortega on 2026-01-19 for 1 unit at $250.00 each." },
+    "expected": "{\"order_id\": \"9002\", \"customer\": \"Luis Ortega\", \"date\": \"2026-01-19\", \"quantity\": 1, \"unit_price\": 250.0}"
+  },
+  {
+    "hardness": "clean",
+    "variables": { "text": "Order #1188 was placed by Priya Raghunathan on 2026-06-30 for 12 units at $4.50 each." },
+    "expected": "{\"order_id\": \"1188\", \"customer\": \"Priya Raghunathan\", \"date\": \"2026-06-30\", \"quantity\": 12, \"unit_price\": 4.5}"
+  },
+
+  {
+    "hardness": "reordered",
+    "variables": { "text": "On 12 February 2026, Dana Kim ordered 5 units of SKU-88 at nineteen dollars ninety-nine each. Reference 4418." },
+    "expected": "{\"order_id\": \"4418\", \"customer\": \"Dana Kim\", \"date\": \"2026-02-12\", \"quantity\": 5, \"unit_price\": 19.99}"
+  },
+  {
+    "hardness": "reordered",
+    "variables": { "text": "Ref 7731 — customer Aaron Bell — qty 2 — 2026/11/08 — 75 dollars per unit." },
+    "expected": "{\"order_id\": \"7731\", \"customer\": \"Aaron Bell\", \"date\": \"2026-11-08\", \"quantity\": 2, \"unit_price\": 75.0}"
+  },
+  {
+    "hardness": "reordered",
+    "variables": { "text": "Placed 3rd of July 2026. Buyer: Wei Zhang. Order number 5540. Six units, $12 apiece." },
+    "expected": "{\"order_id\": \"5540\", \"customer\": \"Wei Zhang\", \"date\": \"2026-07-03\", \"quantity\": 6, \"unit_price\": 12.0}"
+  },
+
+  {
+    "hardness": "missing_field",
+    "variables": { "text": "Order #6620 placed by Nadia Haddad for 4 units at $30 each. Date not recorded." },
+    "expected": "{\"order_id\": \"6620\", \"customer\": \"Nadia Haddad\", \"date\": null, \"quantity\": 4, \"unit_price\": 30.0}"
+  },
+  {
+    "hardness": "missing_field",
+    "variables": { "text": "2026-09-14: 8 units at $5.25 each, order #3301. Customer name withheld at their request." },
+    "expected": "{\"order_id\": \"3301\", \"customer\": null, \"date\": \"2026-09-14\", \"quantity\": 8, \"unit_price\": 5.25}"
+  },
+  {
+    "hardness": "missing_field",
+    "variables": { "text": "Tom Alvarez, 2026-05-02, order #7788. Pricing to be confirmed. 3 units." },
+    "expected": "{\"order_id\": \"7788\", \"customer\": \"Tom Alvarez\", \"date\": \"2026-05-02\", \"quantity\": 3, \"unit_price\": null}"
+  },
+
+  {
+    "hardness": "distractor",
+    "variables": { "text": "Following up on order #2450 from last quarter — the new one is order #2451, placed by Ben Osei on 2026-08-21, 10 units at $9.99 each." },
+    "expected": "{\"order_id\": \"2451\", \"customer\": \"Ben Osei\", \"date\": \"2026-08-21\", \"quantity\": 10, \"unit_price\": 9.99}"
+  },
+  {
+    "hardness": "distractor",
+    "variables": { "text": "Order #8890 for Sofia Marino, 2026-04-11. 7 units at $22 each. Shipping is $15 and tax came to $11.55." },
+    "expected": "{\"order_id\": \"8890\", \"customer\": \"Sofia Marino\", \"date\": \"2026-04-11\", \"quantity\": 7, \"unit_price\": 22.0}"
+  },
+  {
+    "hardness": "distractor",
+    "variables": { "text": "Rep Jordan Lee processed order #5127 for customer Amara Diallo on 2026-10-02: 2 units, $145.50 each." },
+    "expected": "{\"order_id\": \"5127\", \"customer\": \"Amara Diallo\", \"date\": \"2026-10-02\", \"quantity\": 2, \"unit_price\": 145.5}"
+  }
+]
