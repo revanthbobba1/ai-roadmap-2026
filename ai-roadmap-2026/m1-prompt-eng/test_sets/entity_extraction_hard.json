@@ -1,0 +1,55 @@
+[
+  {
+    "hardness": "status_inference",
+    "variables": { "text": "Order 8821. Two lines: AB-1234 x3 at $19.99 each, and CD-567 x2 at $5. Left our warehouse Tuesday." },
+    "expected": "{\"order_id\": \"8821\", \"status\": \"shipped\", \"currency\": \"USD\", \"items\": [{\"sku\": \"AB-1234\", \"quantity\": 3, \"unit_price\": 19.99}, {\"sku\": \"CD-567\", \"quantity\": 2, \"unit_price\": 5.0}], \"subtotal\": 69.97}"
+  },
+  {
+    "hardness": "status_inference",
+    "variables": { "text": "Ref 9930 — still sitting in the queue, nothing picked yet. Items: XY-9012, quantity 10, £4.50 each." },
+    "expected": "{\"order_id\": \"9930\", \"status\": \"pending\", \"currency\": \"GBP\", \"items\": [{\"sku\": \"XY-9012\", \"quantity\": 10, \"unit_price\": 4.5}], \"subtotal\": 45.0}"
+  },
+  {
+    "hardness": "status_inference",
+    "variables": { "text": "Order 4488. Package was signed for yesterday morning. Billed in pounds sterling. ST-5555 x1 @ 129.99" },
+    "expected": "{\"order_id\": \"4488\", \"status\": \"delivered\", \"currency\": \"GBP\", \"items\": [{\"sku\": \"ST-5555\", \"quantity\": 1, \"unit_price\": 129.99}], \"subtotal\": 129.99}"
+  },
+  {
+    "hardness": "status_inference",
+    "variables": { "text": "Order 5501 was voided by the customer before dispatch. Single line ZZ-777 x4 at $8.25 CAD." },
+    "expected": "{\"order_id\": \"5501\", \"status\": \"cancelled\", \"currency\": \"CAD\", \"items\": [{\"sku\": \"ZZ-777\", \"quantity\": 4, \"unit_price\": 8.25}], \"subtotal\": 33.0}"
+  },
+
+  {
+    "hardness": "words_to_numbers",
+    "variables": { "text": "#7745 arrived at the customer on the 3rd. One line: QRS-4488, a dozen units, twelve euros fifty apiece." },
+    "expected": "{\"order_id\": \"7745\", \"status\": \"delivered\", \"currency\": \"EUR\", \"items\": [{\"sku\": \"QRS-4488\", \"quantity\": 12, \"unit_price\": 12.5}], \"subtotal\": 150.0}"
+  },
+  {
+    "hardness": "words_to_numbers",
+    "variables": { "text": "Order 7130 — out for delivery since Monday. UV-6789, three units, at ninety-nine cents each. Prices in US dollars." },
+    "expected": "{\"order_id\": \"7130\", \"status\": \"shipped\", \"currency\": \"USD\", \"items\": [{\"sku\": \"UV-6789\", \"quantity\": 3, \"unit_price\": 0.99}], \"subtotal\": 2.97}"
+  },
+
+  {
+    "hardness": "arithmetic_load",
+    "variables": { "text": "Order 3312, shipped. USD. Lines: AB-101 x2 @ 13.25, CD-2020 x7 @ 3.10, EF-33333 x1 @ 44.00" },
+    "expected": "{\"order_id\": \"3312\", \"status\": \"shipped\", \"currency\": \"USD\", \"items\": [{\"sku\": \"AB-101\", \"quantity\": 2, \"unit_price\": 13.25}, {\"sku\": \"CD-2020\", \"quantity\": 7, \"unit_price\": 3.1}, {\"sku\": \"EF-33333\", \"quantity\": 1, \"unit_price\": 44.0}], \"subtotal\": 92.2}"
+  },
+  {
+    "hardness": "arithmetic_load",
+    "variables": { "text": "Order 9001 pending, EUR. KL-1111 x2 @ 9.99, MN-2222 x3 @ 4.50, OP-3333 x1 @ 22.00, QR-4444 x5 @ 1.20" },
+    "expected": "{\"order_id\": \"9001\", \"status\": \"pending\", \"currency\": \"EUR\", \"items\": [{\"sku\": \"KL-1111\", \"quantity\": 2, \"unit_price\": 9.99}, {\"sku\": \"MN-2222\", \"quantity\": 3, \"unit_price\": 4.5}, {\"sku\": \"OP-3333\", \"quantity\": 1, \"unit_price\": 22.0}, {\"sku\": \"QR-4444\", \"quantity\": 5, \"unit_price\": 1.2}], \"subtotal\": 61.48}"
+  },
+
+  {
+    "hardness": "distractor",
+    "variables": { "text": "Order 6612, shipped, USD. IJ-4321 x3 @ 15.00. Invoice total $60.00 including $15.00 shipping." },
+    "expected": "{\"order_id\": \"6612\", \"status\": \"shipped\", \"currency\": \"USD\", \"items\": [{\"sku\": \"IJ-4321\", \"quantity\": 3, \"unit_price\": 15.0}], \"subtotal\": 45.0}"
+  },
+  {
+    "hardness": "distractor",
+    "variables": { "text": "Follow-up to order 2243 which was cancelled. This is order 2244, delivered. AUD. GH-8080 x5 at 6.60 each. Total before tax: 33.00" },
+    "expected": "{\"order_id\": \"2244\", \"status\": \"delivered\", \"currency\": \"AUD\", \"items\": [{\"sku\": \"GH-8080\", \"quantity\": 5, \"unit_price\": 6.6}], \"subtotal\": 33.0}"
+  }
+]

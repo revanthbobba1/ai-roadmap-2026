@@ -340,6 +340,32 @@ EXTRACT_STRICT = PromptTemplate(
 )
 
 
+# ── Hard extraction — nested schema with cross-field arithmetic ───────────────
+#
+# The flat schema had a 0% failure rate (48/48 valid across two models). This
+# one adds an enum, format patterns, a nested list, and a subtotal that must
+# equal the sum of the line items — so the retry loop has something to catch.
+
+EXTRACT_HARD = PromptTemplate(
+    name="extract_hard",
+    template=(
+        "Extract the order as JSON with exactly these keys:\n"
+        "  order_id    string, digits only\n"
+        "  status      one of: pending, shipped, delivered, cancelled\n"
+        "  currency    ISO 4217 code, uppercase (e.g. USD, GBP, EUR)\n"
+        "  items       array of objects, each with:\n"
+        "                sku         string, format XX-000 (uppercase letters,\n"
+        "                            hyphen, digits)\n"
+        "                quantity    integer\n"
+        "                unit_price  number, price for ONE unit\n"
+        "  subtotal    number, must equal the sum of quantity x unit_price\n"
+        "              across all items. Exclude shipping and tax.\n\n"
+        "Text: {text}"
+    ),
+    variables=["text"],
+)
+
+
 # ── Registry ──────────────────────────────────────────────────────────────────
 # Central lookup so the eval harness can fetch templates by name.
 
@@ -358,6 +384,7 @@ LIBRARY: dict[str, PromptTemplate] = {
         MATH_COT,
         EXTRACT_PLAIN,
         EXTRACT_STRICT,
+        EXTRACT_HARD,
     ]
 }
 

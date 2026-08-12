@@ -478,6 +478,107 @@ keep.
 
 ---
 
+### Experiment 3b — Pydantic validation, flat schema
+
+**Question:** how often does a model emit structurally invalid output?
+
+`Order` — 5 flat fields, pattern on `order_id`, `gt=0` on `quantity`. Two
+strictness settings, two models, 12 cases each.
+
+| | Claude | GPT-4o |
+|---|---|---|
+| lenient (`pydantic_match`) | 12/12 | 12/12 |
+| strict (`pydantic_strict_match`) | 12/12 | 12/12 |
+| cost | $0.004366 | $0.010025 (2.3×) |
+
+**Failure rate: 0%, 48 responses.** Strict passing means both models emitted
+real JSON integers and floats, never `"3"` for `3`. The lenient/strict gap that
+motivated `OrderStrict` measured zero — coercion was never needed.
+
+**Determinism confirmed in the numbers.** Cost was byte-identical between the
+two runs per model ($0.004366 twice; $0.010025 twice). Same prompt at
+temperature 0 produced identical token counts. Visible proof the temp fix works.
+
+**Strict mode has a trap: JSON has no date type.** A blanket
+`ConfigDict(strict=True)` rejects every ISO date string, since dates always
+arrive as `"2026-03-04"`. Looks rigorous, is simply broken — it would measure
+the wire format rather than the model. Strictness has to be applied per field,
+based on what the wire format can actually represent.
+
+**Fencing replicates on GPT-4o.** 0/12 bare on both models — 48/48 fenced
+across two providers. Experiment 3's finding was not Claude-specific.
+
+**Consequence:** a 0% failure rate leaves the retry loop nothing to catch. Drove
+the harder schema below.
+
+---
+
+### Experiment 3c — Hard schema: where extraction actually breaks
+
+`HardOrder` adds the constraint types models genuinely get wrong: an **enum**
+(status), **format patterns** (SKU, ISO-4217 currency), a **nested list** of
+line items, and a **cross-field validator** requiring `subtotal` to equal
+`sum(quantity × unit_price)`.
+
+10 cases, stratified. Failures at last.
+
+| | Claude | GPT-4o |
+|---|---|---|
+| overall | 8/10 (0.80) | 7/10 (0.78) |
+| status_inference | 4/4 | 4/4 |
+| words_to_numbers | 2/2 | 1/2 |
+| distractor | 2/2 | 2/2 |
+| **arithmetic_load** | **0/2** | **0/2** |
+
+**The failure is computation, not extraction.** Both models failed 100% of the
+arithmetic cases while handling everything else well — inferring `shipped` from
+"left our warehouse Tuesday", reading `£` as GBP, and correctly excluding a
+stated $15 shipping charge from the subtotal on both distractor cases. Every
+individual field right; the derived field wrong.
+
+**That's a schema design flaw, not just a model limitation.** Asking a language
+model to sum `2×9.99 + 3×4.50 + 1×22.00 + 5×1.20` requests something Python does
+perfectly and free:
+
+```python
+items    = extract(text)                                    # model is good at this
+subtotal = sum(i.quantity * i.unit_price for i in items)    # code is perfect at this
+```
+
+> Never ask the model for a value you can compute from values it already gave
+> you.
+
+**The subtler finding — validation catches malformed, not wrong.** GPT-4o's
+extra 0.08 of mean score came from one case that *validated successfully with
+bad data*: text said "out for delivery since Monday", model returned
+`status: pending`. Correct answer is `shipped`.
+
+| failure type | caught by |
+|---|---|
+| malformed JSON | the parser |
+| wrong type, invalid enum value, bad format | Pydantic |
+| inconsistent arithmetic | cross-field validator |
+| **wrong enum choice** | **nothing but ground truth** |
+
+`pending` is a valid enum member. Types correct, arithmetic consistent, every
+check green — and the data is wrong. No schema catches this, because the error
+is a judgment rather than a violation. It's also the same shape as the
+Experiment 1b convention problem: mapping "out for delivery" onto a four-value
+enum is a convention the model can't infer.
+
+**Two labels in this test set are wrong.** That case is tagged
+`words_to_numbers` because I assumed the spelled-out price would be the
+difficulty. The model read "ninety-nine cents" as `0.99` without trouble; the
+status broke. The stratification records what I *expected* to be hard, not what
+is — same lesson as the math traps in Experiment 6.
+
+**Method note.** I speculated on the cause of that partial score before reading
+the log, and was wrong — guessed a price misparse, it was the status field.
+Second time this month an explanation preceded the evidence. Checking cost one
+command.
+
+---
+
 ### Experiment 4 — Tool calling
 
 **Tool schema:**

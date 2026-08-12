@@ -194,10 +194,112 @@ def json_match(actual: str, expected: str) -> tuple[bool, float, str]:
     return (score == 1.0), score, "" if not wrong else f"wrong/missing: {wrong}"
 
 
+def _extract_json(raw: str):
+    """Strip fences/preamble and parse. Returns None if unparseable."""
+    import re as _re
+    s = _re.sub(r"^```(?:json)?\s*", "", raw.strip())
+    s = _re.sub(r"\s*```$", "", s)
+    m = _re.search(r"\{.*\}", s, _re.S)
+    if not m:
+        return None
+    try:
+        return json.loads(m.group(0))
+    except json.JSONDecodeError:
+        return None
+
+
+def _pydantic_scorer(model_cls):
+    """
+    Build a scorer bound to a Pydantic model class.
+
+    Two variants are registered below. The difference is instructive rather
+    than cosmetic: lenient Pydantic COERCES, so a response with quantity="3"
+    validates cleanly and scores 1.00 — hiding a type error that even a naive
+    dict comparison catches. Strict refuses the coercion and surfaces it.
+
+    Which you want depends on the question:
+      lenient  "would this work in my app?"        (coercion is a feature)
+      strict   "did the model emit correct types?" (coercion is a lie)
+    """
+    def scorer(actual: str, expected: str) -> tuple[bool, float, str]:
+        from pydantic import ValidationError
+
+        got, want = _extract_json(actual), _extract_json(expected)
+        if want is None:
+            return False, 0.0, "expected value is not valid JSON"
+        if got is None:
+            return False, 0.0, "response did not parse as JSON"
+
+        try:
+            obj = model_cls.model_validate(got)
+        except ValidationError as e:
+            first = e.errors()[0]
+            loc = ".".join(map(str, first["loc"]))
+            # This message is what the Week 2 retry loop feeds back to the
+            # model. It's the real reason to validate rather than eyeball —
+            # a structured error gives you something to re-prompt WITH.
+            return False, 0.0, f"schema: {loc} {first['msg']}"
+
+        return _compare_validated(obj, want)
+    return scorer
+
+
+def _compare_validated(obj, want: dict) -> tuple[bool, float, str]:
+    """
+    Compare a validated Pydantic object's fields against expected values.
+
+    Called only after validation succeeded, so `obj` is a real Order — the
+    question here is no longer "is it well-formed" but "are the values right".
+
+    Returns partial credit: fraction of expected fields that matched.
+
+    obj           an Order instance
+    want          the expected dict, e.g. {"order_id": "4417", "quantity": 3}
+    returns       (all_correct, score_0_to_1, note)
+    """
+    # Round-trip through JSON so both sides are plain types. Without this the
+    # object holds a datetime.date while `want` holds the string "2026-03-04",
+    # and they'd compare unequal despite being the same value.
+    dumped = json.loads(obj.model_dump_json())
+
+    # Which expected fields are missing or wrong?
+    wrong = []
+    for key, expected_value in want.items():
+        if key not in dumped:
+            wrong.append(key)
+        elif not _loose_eq(dumped[key], expected_value):
+            wrong.append(key)
+
+    score = (len(want) - len(wrong)) / len(want)
+    note = "" if not wrong else f"wrong/missing: {wrong}"
+    return (not wrong), score, note
+
+
+def _loose_eq(a, b) -> bool:
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return abs(float(a) - float(b)) < 1e-9
+    if isinstance(a, str) and isinstance(b, str):
+        return a.strip() == b.strip()
+    return a == b
+
+
+def _make_pydantic_scorers():
+    from schemas import HardOrder, Order, OrderStrict
+    return (_pydantic_scorer(Order),
+            _pydantic_scorer(OrderStrict),
+            _pydantic_scorer(HardOrder))
+
+
+pydantic_match, pydantic_strict_match, hard_order_match = _make_pydantic_scorers()
+
+
 SCORERS = {
     "exact_match": exact_match,
     "numeric_match": numeric_match,
     "json_match": json_match,
+    "pydantic_match": pydantic_match,
+    "pydantic_strict_match": pydantic_strict_match,
+    "hard_order_match": hard_order_match,
 }
 
 
@@ -418,12 +520,32 @@ async def main():
     #     model=MODEL, scorer="numeric_match",
     # )
 
-    # Entity extraction — plain vs strict "no markdown fences" instruction
-    await compare_templates(
-        ["extract_plain", "extract_strict"],
-        "test_sets/entity_extraction.json",
-        model=MODEL, scorer="json_match",
-    )
+    # Entity extraction (Experiment 3) — done
+    # await compare_templates(
+    #     ["extract_plain", "extract_strict"],
+    #     "test_sets/entity_extraction.json",
+    #     model=MODEL, scorer="json_match",
+    # )
+
+    # Week 2 Day 1-2 (flat schema) — done. 48/48 valid across both models and
+    # both strictness settings, i.e. a 0% failure rate.
+    # for m in ["claude", "openai"]:
+    #     for sc in ["pydantic_match", "pydantic_strict_match"]:
+    #         print(f"\n\n{'#'*60}\n#  {m}  /  {sc}\n{'#'*60}")
+    #         await compare_templates(
+    #             ["extract_plain"], "test_sets/entity_extraction.json",
+    #             model=m, scorer=sc)
+
+    # Hard extraction — nested schema, enum, format patterns, and a subtotal
+    # that must equal the line items. Built because the flat schema never
+    # failed, leaving the retry loop nothing to catch.
+    for m in ["claude", "openai"]:
+        print(f"\n\n{'#'*60}\n#  {m}  /  hard_order_match\n{'#'*60}")
+        await compare_templates(
+            ["extract_hard"],
+            "test_sets/entity_extraction_hard.json",
+            model=m, scorer="hard_order_match",
+        )
 
 
 if __name__ == "__main__":
