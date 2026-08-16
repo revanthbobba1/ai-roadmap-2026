@@ -141,6 +141,33 @@ class HardOrder(BaseModel):
         return self
 
 
+class OrderNoSubtotal(BaseModel):
+    """
+    HardOrder with `subtotal` removed.
+
+    Both models extract every line item correctly and then get the sum wrong —
+    100% failure on the arithmetic cases, unchanged by tool calling. The failure
+    is computation, not extraction.
+
+    So don't delegate the computation. Have the model extract facts; derive
+    totals in Python, where the answer is exact and free:
+
+        obj      = extract(text)                                    # model
+        subtotal = sum(i.quantity * i.unit_price for i in obj.items)  # code
+
+    No cross-field validator here — with nothing derived, there is nothing to be
+    inconsistent with.
+
+    General principle: never ask a model for a value computable from values it
+    already gave you.
+    """
+
+    order_id: str = Field(pattern=r"^\d+$")
+    status: OrderStatus
+    currency: str = Field(pattern=r"^[A-Z]{3}$", description="ISO 4217")
+    items: list[LineItem] = Field(min_length=1)
+
+
 # ── Tool-calling schema (Week 2 Day 3-4 uses this) ────────────────────────────
 
 def order_json_schema() -> dict:

@@ -657,13 +657,71 @@ different plumbing — as with the system-prompt difference in Month 0.
 
 ---
 
-### Experiment 5 — Retry-on-invalid-JSON
+### Experiment 5 — Retry-on-invalid vs. not delegating the computation
 
-**Recovery rate within 1 retry:**
-**Within 2 retries:**
+Three arms on the same 10 cases, both providers. Failures are entirely
+arithmetic (Experiments 3c and 4): every line item extracted correctly, the
+subtotal wrong.
+
+- **no_retry** — single attempt, baseline
+- **retry** — return the `ValidationError` as a `tool_result` marked
+  `is_error`, up to 3 attempts
+- **computed** — remove `subtotal` from the schema (`OrderNoSubtotal`) and
+  calculate it in Python from the extracted items
+
+| provider | arm | passed | recovered | cost | attempts |
+|---|---|---|---|---|---|
+| Claude | no_retry | 8/10 | — | $0.014906 | 1×10 |
+| Claude | **retry** | **10/10** | 2 | $0.018722 (+26%) | 1×8, 2×2 |
+| Claude | **computed** | **10/10** | — | $0.015394 (+3%) | 1×10 |
+| GPT-4o | no_retry | 8/10 | — | $0.012677 | 1×10 |
+| GPT-4o | **retry** | **10/10** | 2 | $0.016608 (+31%) | 1×8, 2×2 |
+| GPT-4o | **computed** | **10/10** | — | $0.015253 | 1×10 |
 
 **Observations:**
-_(fill in)_
+
+**Retry recovers 100%, always on attempt 2.** No case needed a third. Showing
+the model its own rejected call plus the specific error was sufficient — the
+correct line items were already in its context, so the correction is a re-add
+rather than a re-extraction.
+
+**Latency is the real cost, not tokens.** Retries are *sequential* API calls,
+not parallel. +26–31% on spend, but a doubling of latency on every failing
+request. At a 20% failure rate that lands directly on p95.
+
+**The categorical difference:**
+
+> Retry buys a high probability. Removing the delegation buys a certainty.
+
+Retry went 2/2 here, but it is still a language model doing arithmetic with a
+second attempt. Nothing guarantees convergence — a harder sum or a different
+sample could fail twice and exhaust the budget. `sum(i.quantity * i.unit_price
+for i in items)` is correct for every input that will ever exist. One is a
+measurement, the other a proof.
+
+**When retry is nonetheless the right tool:** when no deterministic fix exists.
+A wrong enum choice or a misread field has no Python expression that repairs it
+— the options are retry, escalate, or accept. That is the normal situation for
+agents, which is why the loop was worth building despite being the wrong answer
+for *this* task.
+
+**The protocol matters — this is the agent loop, not a re-prompt.** The error
+returns as a `tool_result` in the same conversation, so the model sees its own
+call and the rejection:
+
+```
+user       "extract this order"
+assistant  tool_use(record_order, {... subtotal: 75.45})
+user       tool_result(is_error=True, "subtotal 75.45 does not match items")
+assistant  tool_use(record_order, {... subtotal: 69.97})
+```
+
+Anthropic: `role="user"` with a `tool_result` content block.
+OpenAI: `role="tool"` with `tool_call_id`.
+
+**Bounded is load-bearing.** `MAX_ATTEMPTS = 3`. Uncapped retries are how agents
+burn thousands overnight — the model gets stuck, re-calls with near-identical
+arguments, and never converges. Cap it and count the attempts.
 
 ---
 
