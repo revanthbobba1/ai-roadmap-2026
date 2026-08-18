@@ -774,15 +774,114 @@ month where the prediction survived contact with the data.
 
 ---
 
-### Experiment 7 — Self-consistency (N=5)
+### Experiment 7a — Self-consistency on math (a null result, and a repeated mistake)
 
-| Version | Accuracy | Cost multiplier |
-|---|---|---|
-| Single-shot | | 1× |
-| Majority vote (N=5) | | 5× |
+`math_cot` scored 16/16 on the original set, so a harder one was built:
+`math_hard.json`, 12 problems — compound percentages, multi-stage profit,
+work-rate, mixture, optimisation.
+
+| arm | samples | temp | passed | cost |
+|---|---|---|---|---|
+| single_temp0 | 1 | 0.0 | 12/12 | $0.013374 |
+| single_temp07 | 1 | 0.7 | 12/12 | $0.014066 |
+| self_consist | 5 | 0.7 | 12/12 | $0.069208 (**4.9×**) |
+
+Agreement: **5/5 on all 12 cases.**
 
 **Observations:**
-_(fill in — was the accuracy gain worth 5× the cost?)_
+
+**The test set failed to discriminate, and the reason is a repeated error.**
+The problems were chosen using *human* difficulty intuitions — compound
+interest, mixture algebra, work-rate. But Experiment 6 established that
+human-hard ≠ model-hard: the classic traps were trivial because they're
+memorised, while plain multistep arithmetic broke the model. Every problem here
+is a standard textbook type, heavily represented in training data. Same mistake
+as the traps, made again after learning it.
+
+**Self-consistency bought nothing and cost 4.9×.** The technique has a
+precondition that is easy to skip past: *the model must be failing sometimes.*
+On a solved task it is pure waste.
+
+**The real finding — temperature varies the path, not the destination.** At
+temperature 0.7 the reasoning text differed between samples (different wording,
+different intermediate framing) while the final answer was identical on all 12
+problems, 5 times each.
+
+> Temperature produces answer-level variance only where the model is genuinely
+> uncertain.
+
+This refines the earlier claim that "0.7 introduces variance". It does — in the
+text. Whether it reaches the answer depends on whether the model is wobbling.
+It also explains Experiment 2a, where temperature *did* flip results: those were
+borderline cases.
+
+**Consequence for the confidence hypothesis:** it *supports* the idea in
+principle — answer disagreement should appear exactly where the model is unsure
+— but it could not be tested here, because there were no low-agreement cases.
+Untested, not disproved. See 7b.
+
+---
+
+### Experiment 7b — Self-consistency on a failure that reproduces
+
+Rather than invent more math, this reuses the one failure that has appeared on
+every single run: extraction arithmetic. Both models, prose JSON and tool
+calling, temperature 0 — `arithmetic_load` fails 0/2 every time. Reliable
+failure is precisely what self-consistency needs.
+
+**The question:** is the arithmetic error *systematic* (same wrong answer each
+time — voting cannot help) or *random* (different errors, truth modal — voting
+recovers it)?
+
+| arm | samples | temp | passed | cost |
+|---|---|---|---|---|
+| single_temp0 | 1 | 0.0 | 8/10 | $0.006706 |
+| single_temp07 | 1 | 0.7 | 8/10 | $0.006554 |
+| self_consist | 5 | 0.7 | **8/10** | $0.033636 (**5.1×**) |
+
+**Agreement vs. correctness — the headline:**
+
+| agreement | cases | correct |
+|---|---|---|
+| 5/5 | 8 | **8/8** |
+| 1/5 | 2 | **0/2** |
+
+**Perfect discrimination.** Every case where samples agreed was right; every
+case where they scattered was wrong. The agreement-as-confidence hypothesis from
+7a is confirmed — as strongly as 10 cases permit.
+
+**The vote itself bought nothing**, and the reason is subtler than "systematic
+error". The sampled subtotals:
+
+```
+case 3312 (expected 92.20):  75.7,  77.2,  77.7,  78.7,  79.7
+case 9001 (expected 61.48):  64.47, 66.47, 68.47, 69.87, 79.78
+```
+
+**Five distinct values, so no majority exists.** The error is random but
+**diffuse** — scattered rather than clustered. Self-consistency assumes errors
+concentrate and truth is modal; with a flat error distribution there is nothing
+to select.
+
+**And the correct answer never appeared. Not once in ten samples.**
+
+> Majority vote can only choose among answers the model actually generates. If
+> truth is never sampled, no amount of voting finds it.
+
+That is the fundamental limit of the technique, and it is rarely stated
+alongside the recommendation. Self-consistency requires the correct answer to be
+*reachable* — present in the distribution, merely not always top-ranked. Where
+the model is scattered rather than wobbling, sampling only maps the error.
+
+**Practical conclusion — the technique failed at its stated purpose and
+succeeded at a better one.** 5× cost, zero accuracy gain, and a perfect
+confidence signal. Run it not for the vote but for the disagreement
+measurement, then route low-agreement cases to a human or a deterministic fix.
+
+Which closes a loop with Experiment 5: the fix for these cases is computing the
+subtotal in Python. Agreement tells you *which* cases need that treatment
+**without access to ground truth** — which is the only version that works in
+production.
 
 ---
 

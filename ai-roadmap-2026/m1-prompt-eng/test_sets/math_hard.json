@@ -1,0 +1,17 @@
+[
+  { "hardness": "compound_pct", "variables": { "problem": "An investment of $5,000 grows 20% in year one, loses 15% in year two, then grows 10% in year three. What is its value at the end of year three, in dollars?" }, "expected": "5610" },
+  { "hardness": "compound_pct", "variables": { "problem": "A shop marks up an item by 40% over cost, then advertises 25% off the marked price. A customer pays $84. What was the shop's cost, in dollars?" }, "expected": "80" },
+  { "hardness": "compound_pct", "variables": { "problem": "An item is priced at $200. A coupon takes 15% off the pre-tax price, then 8% sales tax is applied to the discounted amount. What is the final amount paid, in dollars?" }, "expected": "183.60" },
+
+  { "hardness": "multi_stage", "variables": { "problem": "A store buys 240 units at $18 each. It sells 60% of them at $32 each, and the remainder at 25% off that $32 price. What is the store's total profit, in dollars?" }, "expected": "2592" },
+  { "hardness": "multi_stage", "variables": { "problem": "A factory produces 480 units per day. Quality control rejects 7.5% of them. The accepted units are packed 16 to a case, and only full cases are shipped. How many cases ship per day?" }, "expected": "27" },
+  { "hardness": "multi_stage", "variables": { "problem": "A recipe serving 6 people needs 450 g of flour. You want to serve 15 people but have only 1 kg of flour. How many grams short are you?" }, "expected": "125" },
+
+  { "hardness": "rate", "variables": { "problem": "A tank fills at 12 litres per minute while simultaneously draining at 5 litres per minute. It starts with 80 litres and holds 500 litres. How many minutes until it is full?" }, "expected": "60" },
+  { "hardness": "rate", "variables": { "problem": "Three workers together can paint a house in 12 days. After 4 days of all three working, one worker leaves. How many more days do the remaining two need to finish?" }, "expected": "12" },
+  { "hardness": "rate", "variables": { "problem": "A car travels 150 km at 50 km/h, then 200 km at 80 km/h. What is the average speed for the entire trip in km/h, to one decimal place?" }, "expected": "63.6" },
+  { "hardness": "rate", "variables": { "problem": "A train leaves a station at 9:00 travelling 60 km/h. A second train leaves the same station at 10:30 travelling 90 km/h in the same direction. How many minutes after 10:30 does the second train catch the first?" }, "expected": "180" },
+
+  { "hardness": "mixture_optimise", "variables": { "problem": "A 40% salt solution is mixed with a 15% salt solution to produce 500 mL of a 25% solution. How many millilitres of the 40% solution are required?" }, "expected": "200" },
+  { "hardness": "mixture_optimise", "variables": { "problem": "A subscription costs $12 per month, or $120 for a full year paid upfront. You need it for exactly 30 months and may combine annual and monthly purchases. What is the lowest total cost, in dollars?" }, "expected": "312" }
+]
