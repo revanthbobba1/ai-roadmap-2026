@@ -24,5 +24,31 @@
       { "id": "range_len", "severity": "trivial", "desc": "`for i in range(len(items))` — unpythonic, should iterate directly. No behavioural impact." },
       { "id": "naming", "severity": "trivial", "desc": "`TAX` is uppercase but is a parameter, not a constant; `d` and `calc` are uninformative names. No behavioural impact." }
     ]
+  },
+  {
+    "name": "cache_worker",
+    "variables": {
+      "code": "import threading\nimport time\n\n_cache = {}\n\ndef get_or_fetch(key, fetch_fn, ttl=60):\n    entry = _cache.get(key)\n    if entry and time.time() - entry['t'] < ttl:\n        return entry['v']\n    value = fetch_fn(key)\n    _cache[key] = {'v': value, 't': time.time()}\n    return value\n\ndef warm(keys, fetch_fn):\n    for k in keys:\n        threading.Thread(target=get_or_fetch, args=(k, fetch_fn)).start()\n"
+    },
+    "planted_issues": [
+      { "id": "race_condition", "severity": "high", "desc": "`_cache` is mutated from multiple threads with no lock. Concurrent check-then-write on a shared dict is a race." },
+      { "id": "unbounded_cache", "severity": "high", "desc": "`_cache` never evicts. Entries past their TTL are recomputed but the stale key stays forever — an unbounded memory leak." },
+      { "id": "thread_leak", "severity": "medium", "desc": "`warm` spawns an unbounded number of threads with no pool, no join, and no limit. A large `keys` list exhausts the thread budget." },
+      { "id": "no_exception_handling", "severity": "medium", "desc": "If `fetch_fn` raises inside a spawned thread, the exception is silently lost — the thread dies and nothing is logged." },
+      { "id": "mutable_global", "severity": "trivial", "desc": "Module-level mutable `_cache` makes the functions untestable in isolation; state leaks between tests. No behavioural impact in production." }
+    ]
+  },
+  {
+    "name": "file_upload",
+    "variables": {
+      "code": "import os\n\nUPLOAD_DIR = '/var/www/uploads'\n\ndef save_upload(filename, data, user):\n    path = os.path.join(UPLOAD_DIR, filename)\n    f = open(path, 'wb')\n    f.write(data)\n    f.close()\n    os.chmod(path, 0o777)\n    log = open('/var/log/uploads.log', 'a')\n    log.write('%s uploaded %s\\n' % (user, filename))\n    return path\n"
+    },
+    "planted_issues": [
+      { "id": "path_traversal", "severity": "critical", "desc": "`filename` is unsanitised and joined directly to the upload directory. A filename of '../../etc/passwd' escapes UPLOAD_DIR and overwrites arbitrary files." },
+      { "id": "world_writable", "severity": "critical", "desc": "`os.chmod(path, 0o777)` makes every uploaded file world-writable and world-executable." },
+      { "id": "no_context_manager", "severity": "medium", "desc": "Files opened without `with`. If `write` raises, the handle leaks — neither `close()` is reached." },
+      { "id": "no_size_limit", "severity": "medium", "desc": "`data` is written with no size check, allowing a single upload to fill the disk." },
+      { "id": "log_injection", "severity": "trivial", "desc": "`user` and `filename` are interpolated into the log unescaped; a newline in either forges log entries. No behavioural impact on the upload itself." }
+    ]
   }
 ]

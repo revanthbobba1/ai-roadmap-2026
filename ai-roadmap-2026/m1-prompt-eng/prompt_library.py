@@ -340,6 +340,78 @@ EXTRACT_STRICT = PromptTemplate(
 )
 
 
+# ── Prompt chaining — split the review into enumerate, then assess ────────────
+#
+# The single-prompt review asks for several things at once: find the problems,
+# judge how serious each is, explain them, and suggest fixes. Those objectives
+# compete — output budget spent explaining issue #1 is budget not spent finding
+# issue #6, and the friendly persona demonstrably traded coverage for tone.
+#
+# The chain separates them:
+#   step 1  enumerate ONLY. No severity, no explanation, no fixes.
+#   step 2  take that list and assess it.
+#
+# Step 1 has a single objective and nothing to trade against, so it should find
+# more. Step 2 gets a complete list to work from rather than generating and
+# judging simultaneously.
+#
+# (This is the same "enumerate before triaging" habit that the interview
+# scorecards flag as a recurring gap — worth knowing whether it helps a model
+# for the same reason it helps a candidate.)
+
+_SEVERITY_RUBRIC = (
+    "Severity definitions:\n"
+    "  critical - exploitable security hole, data loss, or corruption\n"
+    "  high     - causes incorrect behaviour or a crash in normal use\n"
+    "  medium   - problems under some conditions, or harms maintainability\n"
+    "  trivial  - style only, no behavioural impact"
+)
+
+# CONTROL for the chaining experiment. The chained step 2 includes the severity
+# rubric; code_review_strict does not. Comparing those two would confound
+# chaining with the rubric — a third variable smuggled into a two-arm test.
+# This arm is single-prompt WITH the rubric, so `chained` vs this one isolates
+# chaining alone.
+CODE_REVIEW_STRICT_RUBRIC = PromptTemplate(
+    name="code_review_strict_rubric",
+    template=(
+        "Review this Python code and report any problems you find. "
+        "For each problem, assign a severity.\n\n" + _SEVERITY_RUBRIC + "\n\n{code}"
+    ),
+    variables=["code"],
+    role=(
+        "You are a senior staff engineer conducting a rigorous pre-merge code "
+        "review. You are accountable for what ships. Be exacting and direct. "
+        "Flag every defect you find, including minor ones."
+    ),
+)
+
+REVIEW_CHAIN_ENUMERATE = PromptTemplate(
+    name="review_chain_enumerate",
+    template=(
+        "List every problem you can find in this Python code.\n\n"
+        "Output ONLY a numbered list. One problem per line, stated in a single "
+        "short phrase. Do not assign severity. Do not explain. Do not suggest "
+        "fixes. Do not write any preamble or conclusion.\n\n"
+        "{code}"
+    ),
+    variables=["code"],
+)
+
+REVIEW_CHAIN_ASSESS = PromptTemplate(
+    name="review_chain_assess",
+    template=(
+        "Here is a Python file and a list of problems already identified in it.\n\n"
+        "CODE:\n{code}\n\n"
+        "PROBLEMS FOUND:\n{problems}\n\n"
+        "Write the code review. For each problem, state it clearly, assign a "
+        "severity, and explain the consequence. If you notice a problem missing "
+        "from the list, include it too.\n\n" + _SEVERITY_RUBRIC
+    ),
+    variables=["code", "problems"],
+)
+
+
 # ── Hard extraction — nested schema with cross-field arithmetic ───────────────
 #
 # The flat schema had a 0% failure rate (48/48 valid across two models). This
@@ -380,6 +452,9 @@ LIBRARY: dict[str, PromptTemplate] = {
         CODE_REVIEW_NEUTRAL,
         CODE_REVIEW_STRICT,
         CODE_REVIEW_FRIENDLY,
+        CODE_REVIEW_STRICT_RUBRIC,
+        REVIEW_CHAIN_ENUMERATE,
+        REVIEW_CHAIN_ASSESS,
         MATH_DIRECT,
         MATH_COT,
         EXTRACT_PLAIN,

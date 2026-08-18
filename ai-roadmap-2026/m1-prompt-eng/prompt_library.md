@@ -885,12 +885,57 @@ production.
 
 ---
 
-### Experiment 8 — Prompt chaining vs. single mega-prompt
+### Experiment 8 — Prompt chaining vs. single prompt
 
-**Task:**
+**Task:** code review, 4 snippets, 20 planted issues. Two new snippets added
+(concurrency, filesystem security) because `code_review_strict` had already hit
+100% recall on the original two — no headroom.
+
+**Hypothesis:** a single review prompt asks for several things at once (find,
+rate, explain, fix) and those objectives compete for a finite output budget.
+Experiment 2 showed the friendly persona trading coverage for tone. Splitting
+enumeration from assessment should recover it.
+
+**Three arms, so chaining is isolated from the rubric:**
+
+| arm | rubric | calls | recall | crit | sev | tokens | cost |
+|---|---|---|---|---|---|---|---|
+| `code_review_strict` | no | 4 | 90% | 88% | 50% | 3417 | $0.0346 |
+| `code_review_strict_rubric` | yes | 4 | **100%** | **100%** | 40% | 3792 | $0.0378 |
+| `chained` | yes | 8 | 90% | 88% | 55% | 5761 | $0.0525 |
 
 **Observations:**
-_(fill in — what failure modes was each approach prone to?)_
+
+**Chaining lost. The rubric won.** Four lines of severity definitions took
+recall from 90% to 100% for +9% cost and no extra call. Chaining dropped it back
+to 90% at 1.4× the cost of the rubric arm and 2× the calls.
+
+**Why chaining hurt — error propagation.** The chained arm missed `float_money`,
+which `strict_rubric` caught. Step 1 enumerates; step 2 writes the review *from
+that list* and treats it as authoritative. The explicit instruction "if you
+notice a problem missing from the list, include it too" did not overcome the
+anchoring.
+
+> A chain's recall is capped by its weakest stage. A single pass can notice
+> something while writing; a pipeline cannot go back.
+
+Chaining helps when stages are genuinely independent. Where stage 2 depends on
+stage 1 being *complete*, you have added a bottleneck and a failure point, not
+separated concerns.
+
+**Severity agreement did not move: 50% / 40% / 55%.** With 20 issues those are
+almost certainly within noise of one another — no claim that the rubric hurt
+severity, only that nothing here fixed it. Agreement remains near coin-flip even
+with the rubric present in *both* the reviewer's prompt and the judge's. Open
+problem.
+
+**Method note — the control earned its keep.** The chained step 2 originally
+included the severity rubric while `code_review_strict` did not, confounding
+chaining with the rubric. A two-arm run would have shown 90% → 100% and
+supported the conclusion *"chaining improves recall"*, which is exactly
+backwards. The control arm was added before running, after the same
+multi-variable mistake had already been made twice this month (Experiments 1c
+and 2a). First time it was caught in advance rather than in post-mortem.
 
 ---
 
