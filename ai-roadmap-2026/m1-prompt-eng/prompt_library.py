@@ -257,15 +257,16 @@ CODE_REVIEW_FRIENDLY = PromptTemplate(
 )
 
 
-# ── TODO Week 3: CoT and self-consistency ─────────────────────────────────────
-# 1. Build a reasoning-task template with cot=True and compare accuracy and
-#    token cost against the cot=False version.
-# 2. Self-consistency: run the CoT template N times at temperature > 0 and
-#    take the majority-vote answer. Compare against a single run.
+# CoT and self-consistency — DONE, see MATH_DIRECT / MATH_COT below and
+# self_consistency.py + self_consistency_extraction.py.
 #
-# async def self_consistency(template, n=5, **kwargs):
-#     results = await asyncio.gather(*[template.run(**kwargs) for _ in range(n)])
-#     ...  # majority vote over parsed answers
+# CoT: 13/16 -> 16/16 for 9.4x cost. All the gain came from multi-step problems;
+#      it bought nothing on single-step ones. (Experiment 6)
+# Self-consistency: no accuracy gain in either test, because either the model
+#      was already correct, or its errors were too diffuse for a majority to
+#      exist — five samples produced five distinct wrong answers and the correct
+#      one never appeared. It did yield a perfect confidence signal, which is a
+#      better reason to run it. (Experiments 7a, 7b)
 
 
 # ── Task type 3: math word problems ───────────────────────────────────────────

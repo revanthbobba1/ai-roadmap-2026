@@ -328,21 +328,22 @@ def classify_format(raw: str) -> str:
     return "prose"
 
 
-# TODO Week 4 Day 3-4: LLM-as-judge scorer
+# LLM-as-judge — DONE, but it lives in checklist_scorer.py rather than here,
+# because it doesn't fit the (actual, expected) -> score signature these scorers
+# share. It grades one prose output against a LIST of known defects, asking a
+# separate binary question per defect.
 #
-# async def llm_judge(actual: str, expected: str, rubric: str) -> tuple[bool, float, str]:
-#     """
-#     Send the output plus a written rubric to a second model and ask for a
-#     1-5 score with a one-line justification.
+# The design choice that makes it reliable:
+#   holistic   "rate this review 1-5"          -> no ground truth, the judge
+#                                                 exercises taste, maximum
+#                                                 exposure to position /
+#                                                 verbosity / leniency bias
+#   grounded   "does this review identify THIS  -> a factual lookup against
+#               specific defect? YES/NO"           something you defined
 #
-#     Biases to watch for (these show up in interviews too):
-#       - position bias   : judges favor whichever answer appeared first.
-#                           Fix by running both orderings and averaging.
-#       - verbosity bias  : judges favor longer answers regardless of quality
-#       - leniency bias   : judges skew generous by default — anchor the rubric
-#                           with explicit examples of a 1, a 3, and a 5
-#     """
-#     ...
+# See prompt_library.md Experiment 2b, including judge validation and why an
+# undefined severity scale kept agreement at 20-57% until the rubric was
+# anchored to consequence.
 
 
 # ── Harness ───────────────────────────────────────────────────────────────────

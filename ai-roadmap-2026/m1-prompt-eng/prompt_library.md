@@ -8,19 +8,23 @@ Models tested: `claude-haiku-4-5` (Anthropic), `gpt-4o` (OpenAI)
 
 ## Section 1: Techniques Tested
 
-| Technique | Definition | Status |
-|-----------|------------|--------|
-| Zero-shot | Instruction only, no examples | ✅ |
-| Few-shot | Instruction + 2–3 worked examples | ✅ |
-| Prose rules | Policy stated explicitly in the instruction | ✅ |
-| Role / persona | Persona set in the system prompt to shift tone and strictness | ⬜ |
-| Structured output | Output constrained to a Pydantic schema | ⬜ |
-| Tool calling | Model returns a structured tool call rather than prose JSON | ⬜ |
-| Retry-on-invalid | Re-prompt with the validation error when parsing fails | ⬜ |
-| Chain-of-thought | Model reasons step by step before answering | ⬜ |
-| Self-consistency | N runs at temp > 0, majority vote on the answer | ⬜ |
-| Prompt chaining | Task split across sequential prompts | ⬜ |
-| LLM-as-judge | Second model scores outputs against a written rubric | ⬜ |
+| Technique | Definition | Experiment | Status |
+|-----------|------------|-----------|--------|
+| Zero-shot | Instruction only, no examples | 1a, 1b | ✅ |
+| Few-shot | Instruction + 2–3 worked examples | 1a, 1b | ✅ |
+| Prose rules | Policy stated explicitly in the instruction | 1b, 1c | ✅ |
+| Ablation | Remove one component to measure its contribution | 1c | ✅ |
+| Cross-model replication | Same suite on a second provider | 1d | ✅ |
+| Role / persona | Persona in the system prompt, shifting tone and strictness | 2 | ✅ |
+| LLM-as-judge | Second model scores outputs against a written rubric | 2b | ✅ |
+| Structured output | Output validated against a Pydantic schema | 3b, 3c | ✅ |
+| Cross-field validation | Check spanning several fields (`subtotal` = Σ items) | 3c | ✅ |
+| Tool calling | Model returns a structured call rather than prose JSON | 4 | ✅ |
+| Retry-on-invalid | Return the validation error and re-attempt | 5 | ✅ |
+| Chain-of-thought | Model reasons step by step before answering | 6 | ✅ |
+| Self-consistency | N runs at temp > 0, majority vote on the answer | 7a, 7b | ✅ |
+| Prompt chaining | Task split across sequential prompts | 8 | ✅ |
+| Regression suite | All experiments vs. saved baselines, one command | 10 | ✅ |
 
 ---
 
@@ -941,17 +945,21 @@ and 2a). First time it was caught in advance rather than in post-mortem.
 
 ### Experiment 9 — LLM-as-judge
 
-**Rubric used:**
+Covered in **Experiment 2b**, where the judge was built, and used as the scorer
+throughout Experiments 2 and 8.
 
-**Consistency:** ran the same judge call ___ times on identical input; scores varied by ___
+Summary of what's there: the grounded design (binary question per known defect)
+versus the holistic one (rate 1–5); judge validation against cases with known
+answers before trusting it on unknown ones; and the severity rubric that moved
+agreement from 20–57% to 67–80% once the scale was defined by consequence rather
+than adjective.
 
-**Biases observed:**
-- Position bias:
-- Verbosity bias:
-- Leniency bias:
-
-**Observations:**
-_(fill in)_
+**Not measured — judge self-consistency.** The same judge call was never run
+repeatedly on identical input to see whether its own verdicts are stable. It
+runs at `temperature=0.0`, so it should be, but that's an assumption rather than
+a measurement. Position, verbosity, and leniency bias were mitigated by design
+(binary grounded questions leave little room for them) but never quantified,
+since doing so requires a holistic judge to compare against. Open.
 
 ---
 
