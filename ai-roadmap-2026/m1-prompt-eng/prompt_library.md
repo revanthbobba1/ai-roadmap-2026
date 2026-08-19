@@ -955,18 +955,65 @@ _(fill in)_
 
 ---
 
-### Experiment 10 — Regression test across prompt versions
+### Experiment 10 — Regression suite
 
-**Scoreboard:**
+`regression.py` — one command, 12 experiment configs, ~208 API calls, each
+compared against its own saved baseline in `baselines.json`.
 
-| Version | Passed | Mean score |
+**Not one score — one command.** The experiments measure unrelated things:
+exact-match classification, numeric answers, schema validation, issue recall
+from an LLM judge. Nothing is averaged. Each keeps its own metric and its own
+recorded value; the comparison is always *this experiment vs. what it scored
+last time.* Same structure as `pytest`, which runs hundreds of unrelated checks
+without combining them into a number.
+
+Exit code 1 on any drop, so it can gate CI. Improvements are reported but do not
+fail.
+
+**Recorded baselines:**
+
+| experiment | metric | baseline |
 |---|---|---|
-| v1 | | |
-| v2 | | |
-| v3 | | |
+| ticket_routing/no_policy | exact_match | 0.54 |
+| ticket_routing/prose_rules | exact_match | 1.00 |
+| ticket_routing/few_shot | exact_match | 0.75 |
+| math/direct | numeric_match | 0.81 |
+| math/cot | numeric_match | 1.00 |
+| extraction/flat | pydantic | 1.00 |
+| extraction/hard_prose | hard_order | 0.80 |
+| extraction/hard_tools | hard_order | 0.80 |
+| extraction/retry | hard_order | 1.00 |
+| extraction/computed | hard_order | 1.00 |
+| code_review/strict | issue_recall | 0.90 |
+| code_review/strict_rubric | issue_recall | 1.00 |
 
-**Did the harness catch a real regression?**
-_(fill in)_
+**Observations:**
+
+**All 12 reproduced their original measurements exactly**, across experiments
+originally run hours apart. That is `temperature=0` doing real work, and it
+retroactively justifies the fix in Experiment 2a — where two confident
+conclusions turned out to be resampling noise at 0.7.
+
+**Metrics are reproducible; raw outputs are only approximately so.** The
+tool-calling failure re-ran as `subtotal 73.47` where the original said `73.48`.
+Identical score, different last decimal. Temperature 0 makes *sampling*
+deterministic; it does not make the underlying floating-point arithmetic
+bit-identical across runs. Any check comparing exact output strings would be
+flaky for reasons that look like a model change and aren't.
+
+**What it's actually for:**
+
+1. Change one prompt — did anything else move?
+2. **The provider ships a new model version.** The strongest case: prompts
+   quietly behave differently and without a baseline you learn it from users.
+3. Someone else runs the repo, including you in three months.
+
+This is the **regression gate** — the thing that turns an eval set from a
+one-time exercise into infrastructure.
+
+**Design note — cost discipline.** The registry covers every scorer and every
+mechanism, not every template written. A suite that costs $0.20 gets run; one
+that costs $20 does not, and an unrun suite catches nothing.
 
 ---
 

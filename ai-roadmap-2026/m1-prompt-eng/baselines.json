@@ -1,0 +1,53 @@
+{
+  "recorded": "2026-08-18T21:32:04",
+  "scores": {
+    "ticket_routing/no_policy": {
+      "metric": "exact_match",
+      "value": 0.5417
+    },
+    "ticket_routing/prose_rules": {
+      "metric": "exact_match",
+      "value": 1.0
+    },
+    "ticket_routing/few_shot": {
+      "metric": "exact_match",
+      "value": 0.75
+    },
+    "math/direct": {
+      "metric": "numeric_match",
+      "value": 0.8125
+    },
+    "math/cot": {
+      "metric": "numeric_match",
+      "value": 1.0
+    },
+    "extraction/flat": {
+      "metric": "pydantic",
+      "value": 1.0
+    },
+    "extraction/hard_prose": {
+      "metric": "hard_order",
+      "value": 0.8
+    },
+    "extraction/hard_tools": {
+      "metric": "hard_order",
+      "value": 0.8
+    },
+    "extraction/retry": {
+      "metric": "hard_order",
+      "value": 1.0
+    },
+    "extraction/computed": {
+      "metric": "hard_order",
+      "value": 1.0
+    },
+    "code_review/strict": {
+      "metric": "issue_recall",
+      "value": 0.9
+    },
+    "code_review/strict_rubric": {
+      "metric": "issue_recall",
+      "value": 1.0
+    }
+  }
+}
