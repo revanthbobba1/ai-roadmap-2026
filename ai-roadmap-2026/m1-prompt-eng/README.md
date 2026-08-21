@@ -60,13 +60,66 @@ python eval_harness.py
 
 ## What I learned
 
-_(fill in at end of month — 3–5 bullets from your own experiments)_
+- **The basic approach beat the sophisticated one in every head-to-head I ran.**
+  There are a lot of well-researched, widely-used techniques for improving model
+  output — few-shot, chain-of-thought, self-consistency, prompt chaining. In my
+  experiments the plainer option won each time: prose rules beat few-shot,
+  computing a value in Python beat retrying until the model got it right, a
+  four-line rubric beat a two-stage pipeline. That's counterintuitive, and it's
+  the opposite of the instinct to reach for the more advanced tool.
+
+- **The lesson isn't "simple is better" — it's account for the problem space
+  before designing for it.** Each technique exists because it solves a real
+  failure, and they lost here because my tasks didn't have those failures.
+  Over-engineering costs real money and doesn't necessarily solve the problem
+  any better. Diagnosing what actually broke is the skill; the techniques are
+  the easy part.
+
+- **When to use few-shot:** when the answer has to follow a very specific form
+  that can't easily be described — a voice, a format, something you'd struggle
+  to write down as a rule. Otherwise state it in prose, which covers a wider
+  boundary and captures the edge cases. Few-shot pins down specific data points;
+  prose describes the shape of the whole space.
+
+- **Some behaviours can't be prompted away.** An explicit instruction banning
+  markdown code fences produced 48 fenced responses out of 48, across two
+  providers. Switching to tool calling produced zero. Where a behaviour is
+  trained rather than instructed, you need a mechanism that makes the
+  alternative impossible, not a firmer request.
+
+- **Validation isn't correctness.** A schema tells you output is well-formed. It
+  can't tell you it's right — a model returning a valid-but-wrong enum value
+  passes every structural check. Only ground truth catches that, and you need
+  both layers.
+
+- **What I'd do differently:** go wider before going deep. I didn't realise how
+  many techniques there were, or how many distinct drawbacks each one carries.
+  Covering more of them shallowly first would have given me a map of where the
+  limitations are — and patterns in those gaps would then have told me which
+  ones were actually worth digging into.
 
 ---
 
 ## Cost
 
-_(fill in — roughly what does a full harness run cost?)_
+**Roughly $0.75–1.00 for the entire month** — every experiment, every rerun,
+both providers.
+
+Logged calls come to $0.2778 across 702 requests, a mean of **$0.0004 per call**.
+Several scripts don't route through the shared logger, so the true total is
+higher, but the order of magnitude holds: this is under a dollar of experiments.
+
+| model | logged calls | logged cost |
+|---|---|---|
+| claude-haiku-4-5 | 572 | $0.2149 |
+| gpt-4o | 130 | $0.0629 |
+
+GPT-4o ran ~2.3–2.6× the cost of Claude for identical tasks, consistently across
+every comparison.
+
+A full `regression.py` run is ~208 calls, well under $0.20 — cheap enough to run
+on every change, which is the point. A suite expensive enough to skip catches
+nothing.
 
 ---
 

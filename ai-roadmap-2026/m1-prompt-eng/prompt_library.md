@@ -1027,29 +1027,306 @@ that costs $20 does not, and an unrun suite catches nothing.
 
 ## Section 3: When to Use Each Technique
 
-_(fill in — your own recommendations, based on the harness data rather than articles)_
+Every row below is grounded in a measurement from Section 2, not in received
+wisdom. Where a technique lost, it lost on data.
 
-| Technique | Use when | Skip when |
-|---|---|---|
-| Few-shot | | |
-| Role prompting | | |
-| CoT | | |
-| Self-consistency | | |
-| Prompt chaining | | |
+### The decision table
+
+| Technique | Use when | Skip when | Evidence |
+|---|---|---|---|
+| **Prose rules** | The rule is cleanly stateable in a sentence. Default choice for conveying policy. | Never — this was the cheapest winner in every comparison it entered. | 1b: 24/24 vs few-shot's 18/24, at fewer tokens |
+| **Few-shot** | The rule resists articulation — tone, voice, output format, style. Or the model is *uncertain* rather than *wrong*. | The rule can be stated. On an easy task. To override a strong prior. | 1a: +62% cost, zero gain. 1b: moved convention 1/8→3/8 where prose moved it to 8/8 |
+| **Role / persona** | You want a specific tone *and* have measured what it costs in coverage. | You assume it only affects delivery. It does not. | 2: friendly found 6/10 defects vs strict's 10/10, and downgraded two `high` issues to medium |
+| **Structured output (schema)** | Output must be machine-consumable. Always, for extraction. | Expecting it to improve correctness. | 3c: catches malformed output; a valid-but-wrong enum passes every check |
+| **Cross-field validation** | Any derived value exists in your schema. | — | 3c: the only mechanism that caught internally-inconsistent output |
+| **Tool calling** | You need format guarantees. Eliminates fencing and malformed JSON entirely. | You need *reasoning* fixed, or the schema is verbose and cost matters. | 4: fences 10/10 → 0/10; arithmetic 0/2 → 0/2; Claude cost 2.2× |
+| **Retry-on-invalid** | No deterministic fix exists — wrong enum, misread field, anything a validator can flag but code cannot repair. | The failing value is computable. Then delete the delegation instead. | 5: 100% recovery, always on attempt 2, but +26% cost and **2× latency**; computing was free and exact |
+| **Chain-of-thought** | The task needs several sequential steps. | Single-step tasks — pure cost. | 6: 13/16 → 16/16 at **9.4×**; gain came entirely from multistep, nothing on 1-step |
+| **Self-consistency** | You want a **confidence signal**. Not primarily for accuracy. | Errors are diffuse, or the model already succeeds. | 7b: no accuracy gain, but 5/5 agreement → 8/8 correct and 1/5 → 0/2 |
+| **Prompt chaining** | Stages are genuinely independent. | Stage 2 depends on stage 1 being *complete*. | 8: recall **fell** 100% → 90% at 2× calls, via error propagation |
+| **Severity rubric** | Any task where a scale is being applied — by model or judge. | — | 8: +10 points recall for +9% cost. 2b: judge agreement 20–57% → 67–80% |
+| **Grounded LLM-as-judge** | Output is prose and ground truth can be enumerated. | Ground truth cannot be enumerated — then you have taste, not measurement. | 2b: 5/5 on validation, including refusing to credit a silent fix |
+
+### The scope of these findings
+
+The simpler intervention won every head-to-head here: prose beat few-shot,
+computing beat retrying, a rubric beat a pipeline. That is a real result, but it
+is a result **about these tasks** — short inputs, flat schemas, four-way
+classification, ten-line code snippets.
+
+The reason simple won is that the tasks were simple. Every one of these
+techniques exists because it solves a problem that shows up at greater
+complexity:
+
+- **Few-shot** should win where the rule genuinely cannot be stated — matching a
+  house writing voice, an output format with no compact description, edge cases
+  too numerous to enumerate. Nothing here had that property.
+- **Chaining** should win where stages are genuinely independent and each is
+  substantial — extract, then retrieve, then synthesise across documents. Here
+  stage 2 depended on stage 1 being complete, which is the one shape where
+  chaining is guaranteed to hurt.
+- **Self-consistency** should win where errors cluster around the truth. Here
+  they were diffuse, so there was no majority to find.
+
+So the honest conclusion is not "sophisticated techniques lose." It is:
+
+> Each technique addresses a specific failure class. Reaching for one before
+> identifying the failure is how you pay for machinery that solves a problem you
+> do not have.
+
+The skill being built this month is not knowing the techniques — those take an
+afternoon to read about. It is knowing **which situation calls for which**, and
+being able to tell the difference by measuring rather than guessing. That
+judgement is what the eval harness exists to support.
+
+### Three rules that generalise
+
+**1. State the rule if you can; demonstrate it if you can't.**
+Prose specifies a boundary — "*anything* about passwords, 2FA, SSO, or login."
+An example marks one point near the boundary and leaves the model to infer its
+shape. Few-shot earns its tokens where no compact prose exists: tone, formatting,
+style.
+
+**2. Never delegate what you can compute.**
+Both models extracted every line item correctly and then failed 100% of the
+subtotals. `sum(qty * price)` is correct for every input that will ever exist.
+Retry buys a high probability; removing the delegation buys a certainty.
+
+**3. Match the mechanism to the failure class.**
+
+| failure | fix |
+|---|---|
+| malformed output | tool calling or a schema |
+| wrong derived value | compute it in code |
+| insufficient reasoning steps | chain-of-thought |
+| uninferable convention | prose rules |
+| unknown-unknowns | measure agreement, escalate the low-agreement cases |
+
+Tool calling eliminated *every* format failure and touched *no* reasoning
+failure. Techniques are not ranked; they address different things.
 
 ---
 
 ## Section 4: Eval Harness Design
 
-**What it scores:**
+### What it scores
 
-**Why these metrics:**
+Six scorers, because "correct" means something different per task shape:
 
-**Known blind spots:**
-_(what can this harness not catch? Every eval has gaps — naming them is the point.)_
+| scorer | question | used by |
+|---|---|---|
+| `exact_match` | does the string match? | classification |
+| `numeric_match` | does the final number match? | math — extracts from CoT working |
+| `json_match` | do the field values match? partial credit | extraction |
+| `pydantic_match` | does it validate *and* match? | flat schema |
+| `hard_order_match` | same, with cross-field consistency | nested schema |
+| `checklist` (grounded judge) | does this prose identify each known defect? | code review |
+
+Plus two axes that are not correctness at all:
+
+- **`classify_format`** — bare / fenced / prose. Separate from accuracy because
+  `json_match` strips fences, so a response can be perfectly accurate and
+  totally non-compliant. Two questions, two metrics.
+- **`agreement`** — how many of N samples reached the same answer. A confidence
+  signal that needs no ground truth.
+
+### Why these metrics
+
+**Partial credit over binary.** On a 5-field schema, "got 4 of 5" and "produced
+garbage" are different failures, and binary scoring discards the difference.
+
+**`critical_recall` separate from `issue_recall`.** An 80% recall that missed the
+SQL injection is worse than a 60% that caught it. Not all misses cost the same,
+so not all misses should score the same.
+
+**Per-category breakdown on every test set.** The aggregate hides *which kind* of
+hardness a prompt handles. Experiment 1b's headline was 24/24 vs 18/24; the
+finding was in the convention column, 8/8 vs 3/8. An aggregate would have shown
+a difference without showing what caused it.
+
+**Refuse to score rather than score badly.** Any API error aborts the run.
+Learned from a scoreboard that reported `0/20` with total confidence when the
+real cause was an empty credit balance.
+
+**`temperature=0.0` by default.** Reproducibility is a precondition for
+everything else. Two conclusions were drawn from resampling noise before this
+was fixed, and the regression suite later reproduced all 12 baselines exactly.
+
+### Practices this harness adopted, and why
+
+Each of these was introduced in response to something the harness got wrong
+first. They are the durable output of the month — more so than any individual
+prompt result.
+
+| practice | the problem it solves |
+|---|---|
+| **Refuse to score rather than score badly** | A scoreboard once reported `0/20` with total confidence when the real cause was an empty credit balance. Any API error now aborts the run before a score exists. |
+| **`temperature=0.0` by default** | Reproducibility is a precondition for everything else. Two conclusions were traced back to resampling variance before this was fixed; afterwards, the regression suite reproduced all 12 baselines exactly. |
+| **Isolate one variable per comparison** | Multi-variable changes make attribution impossible. Now every experiment carries a control arm — Experiment 8's control was added *before* running, and it reversed the conclusion the two-arm version would have supported. |
+| **Ablate before believing an explanation** | Cheap: one phrase removed, one rerun, under a cent. Experiment 1c used it to overturn a plausible-sounding claim about *why* prose won. |
+| **Validate a judge before trusting it** | Check it against cases whose answers you already know. Requires the thing being judged to be deterministic — a judge cannot be checked against an output that no longer exists. |
+| **Define scales by consequence, not adjective** | Judge agreement sat at 20–57% while "trivial" and "medium" were undefined; anchoring them to consequence moved it to 67–80%. |
+| **Build test sets from observed failures, not predicted difficulty** | Difficulty intuitions transfer badly from humans to models: the classic reasoning traps proved trivial while plain multistep arithmetic broke both models. Later test sets were built from failures the models had actually produced. |
+| **Separate correctness from compliance** | `json_match` strips markdown fences, so a response can be perfectly accurate and completely non-compliant. Two questions need two metrics. |
+
+### What this harness does not measure
+
+Stated so that results are read with the right scope. Each is tractable and
+several are Month 2 work.
+
+**Statistical power.** Test sets run 10–24 cases. Small differences are not
+distinguishable from noise — severity agreement of 50% / 40% / 55% across three
+arms is most likely one number with error bars. No bootstrapping, no confidence
+intervals. *Fix: larger sets and bootstrapped intervals on the metrics that
+matter.*
+
+**Label reliability.** Ground truth has a single author, so there is no
+inter-annotator agreement and no Cohen's kappa to check it against.
+
+Worth distinguishing two failure modes here, because only one of them occurred.
+Severity agreement sat at 20–57% across every candidate — but the **labels** were
+not wrong; `unused_import` really is trivial. What was missing were the
+**annotation guidelines**: a four-level scale had been used without ever
+defining what the levels meant, so the judge was mapping the review's own
+colour-coding onto an undefined scale. Defining each level by consequence moved
+agreement to 67–80% **without changing a single label**.
+
+An undefined scale does not produce wrong labels. It produces *unreproducible*
+ones — which is precisely what inter-annotator agreement exists to detect, and
+which a single-author ground truth cannot surface on its own.
+
+*Fix: a second annotator on a sample, which would have caught the missing
+guidelines immediately.*
+
+**User-facing behaviour.** Temperature 0 measures what a prompt is *capable* of —
+its best single output. A system deployed at 0.7 exposes users to the whole
+distribution. *Fix: N runs at production temperature, reporting the spread
+rather than a point.*
+
+**Latency.** `LLMResponse` records `latency_ms`; nothing aggregates it. The
+retry experiment's sharpest conclusion — that retries double p95 — is reasoned
+from call counts rather than measured. *Fix: percentile tracking in the harness.*
+
+**Adversarial robustness.** Every input is well-intentioned. Whether schema
+enforcement holds against inputs actively trying to break it is untested, and
+directly relevant to the agentic work in Month 2.
+
+**Judge characterisation.** The grounded design leaves little room for position,
+verbosity, or leniency bias — but that is a design argument, not a measurement.
+Quantifying it requires a holistic judge to compare against.
+
+**Breadth.** One language, short synthetic inputs, three task types. Five of
+eleven experiments ran on both providers; the rest are single-model results.
 
 ---
 
 ## Conclusions
 
-_(fill in at end of month)_
+### The month in one line
+
+Prompting techniques are easy to read about and hard to choose between. The
+useful skill is not knowing that few-shot or chain-of-thought exists — it is
+diagnosing which failure you actually have before reaching for machinery that
+solves a different one.
+
+### What the measurements showed
+
+Every head-to-head here was won by the simpler option. Prose rules beat few-shot.
+Computing a value in Python beat retrying until the model got it right. A
+four-line severity rubric beat a two-stage pipeline. Reading a sample-agreement
+number beat majority voting.
+
+That is a real result, and it is a result *about these tasks* — short inputs,
+flat schemas, four-way classification, ten-line code snippets. The simple option
+won because the problems were simple. Each of these techniques exists because it
+solves something that appears at greater complexity: few-shot where a rule
+resists articulation, chaining where stages are genuinely independent,
+self-consistency where errors cluster around the truth. None of those conditions
+held here, which is *why* the elaborate options lost.
+
+So the conclusion is not that sophisticated techniques are overrated. It is that
+reaching for one before identifying the failure means paying for machinery that
+addresses a problem you do not have.
+
+### The diagnostic that emerged
+
+The most reusable output of the month is not a prompt. It is a way of reading the
+baseline.
+
+Running the plain prompt first is not a formality — it is a measurement of what
+the model already knows, and it tells you which intervention is warranted:
+
+| baseline score | what it means | what to do |
+|---|---|---|
+| below chance | strong prior pointing the wrong way | state the rule explicitly in prose |
+| near chance | genuine uncertainty, no firm belief | examples are sufficient |
+| already correct | the model knows this | intervene at all and you are paying for nothing |
+
+Below chance is the signature that matters. Random across four categories is
+~2/8; a score of 1/8 means the model is not confused but *systematically wrong*,
+which calls for a stated rule rather than a demonstration.
+
+And once the failure is identified, the mechanism follows from it:
+
+| failure class | mechanism |
+|---|---|
+| malformed output | tool calling or a schema |
+| wrong derived value | compute it in code — do not delegate |
+| insufficient reasoning steps | chain-of-thought |
+| uninferable convention | prose rules |
+| unknown-unknowns | sample agreement, escalate the disagreements |
+
+Tool calling eliminated *every* format failure and touched *no* reasoning
+failure. Techniques are not ranked against each other; they address different
+things.
+
+### Three findings that transfer
+
+**1. Some behaviours cannot be prompted away.** An explicit instruction banning
+markdown fences produced 48 fenced responses out of 48, across two providers.
+Switching to tool calling produced zero. Where a behaviour is trained rather than
+instructed, the fix is a mechanism that makes the alternative impossible — not a
+firmer request.
+
+**2. Validation is not correctness.** A schema confirms output is *well-formed*.
+It cannot confirm it is *right*. A model returning a valid-but-wrong enum member
+passes every structural check, and only ground truth catches it. Both layers are
+required, and conflating them is how a system ships confident errors.
+
+**3. Sample disagreement is a confidence signal that needs no ground truth.**
+5/5 agreement was 8/8 correct; 1/5 agreement was 0/2. Unlike asking a model how
+sure it is — which is a self-report from a poorly-calibrated system — this is an
+external measurement. It is also the only version of the idea that works in
+production, where ground truth is exactly what you do not have.
+
+### What the process taught, separately from the results
+
+Four times a plausible explanation was written down and then overturned by an
+experiment designed to break it. Each cost under a cent and a few minutes. Two
+were caught by ablation, one by reading a log rather than speculating about it,
+and one by a control arm added *before* running rather than reconstructed
+afterwards.
+
+The pattern is consistent enough to be a practice: an explanation that has not
+survived an attempt to falsify it is a hypothesis, and belongs in the write-up
+labelled as one.
+
+Five separate experiments hit ceiling effects — every candidate maxing the
+metric, leaving the comparison uninformative. Each time, the finding was about
+the eval rather than the prompts. An eval that cannot produce a losing score
+cannot produce information, and noticing that quickly turned out to matter more
+than any individual prompt result.
+
+### What Month 2 inherits
+
+- **Test sets built from observed failures, not predicted difficulty.** Human
+  intuitions about difficulty transfer badly: classic reasoning traps proved
+  trivial while plain multistep arithmetic broke both models.
+- **A second annotator on a sample of labels**, so undefined scales surface as
+  disagreement rather than as a mystery.
+- **Adversarial cases.** Every input here was well-intentioned. Whether schema
+  enforcement survives inputs actively trying to break it is untested, and
+  directly relevant to agentic tool use.
+- **Latency as a first-class metric.** The retry experiment's sharpest
+  conclusion — that retries double p95 — is currently reasoned from call counts
+  rather than measured.
