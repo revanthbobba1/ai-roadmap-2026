@@ -1,0 +1,90 @@
+[
+  {
+    "job_id": "j_001",
+    "title": "Backend Engineer, Platform",
+    "company": "Nimbus Data",
+    "location": "Boston, MA",
+    "posted": "2026-09-02",
+    "salary_min": 150000,
+    "salary_max": 185000,
+    "description": "Build and scale the ingestion platform. Java and Go services on Kubernetes, ~40B events/day. You will own service reliability end to end. Looking for 5+ years backend experience; distributed systems background valued. Some exposure to ML infrastructure is a plus but not required.",
+    "url": "https://example.com/jobs/j_001"
+  },
+  {
+    "job_id": "j_002",
+    "title": "AI Engineer, Applied",
+    "company": "Corvid Labs",
+    "location": "Boston, MA",
+    "posted": "2026-09-05",
+    "salary_min": 165000,
+    "salary_max": 210000,
+    "description": "Ship LLM-backed features in the product. Prompt engineering, evaluation harnesses, RAG pipelines, agentic workflows. We hire strong software engineers and teach the ML; no research background required. Python, FastAPI, Postgres, pgvector.",
+    "url": "https://example.com/jobs/j_002"
+  },
+  {
+    "job_id": "j_003",
+    "title": "Senior Software Engineer, Backend",
+    "company": "Harborline",
+    "location": "Remote (US)",
+    "posted": "2026-08-28",
+    "salary_min": 140000,
+    "salary_max": 175000,
+    "description": "Payments infrastructure. Java, Spring, Kafka. Heavy emphasis on correctness, idempotency, and reconciliation. On-call rotation shared across six engineers. Fully remote within the US.",
+    "url": "https://example.com/jobs/j_003"
+  },
+  {
+    "job_id": "j_004",
+    "title": "Machine Learning Engineer",
+    "company": "Corvid Labs",
+    "location": "Boston, MA",
+    "posted": "2026-09-08",
+    "salary_min": 175000,
+    "salary_max": 225000,
+    "description": "Train and serve models in production. PyTorch, feature stores, model registries, online/offline skew. Requires prior experience training models, not only consuming APIs. MS or equivalent industry experience.",
+    "url": "https://example.com/jobs/j_004"
+  },
+  {
+    "job_id": "j_005",
+    "title": "Software Engineer, LLM Tooling",
+    "company": "Deepfield",
+    "location": "Remote (US)",
+    "posted": "2026-09-09",
+    "salary_min": 155000,
+    "salary_max": 195000,
+    "description": "Internal tooling for teams building on LLMs: eval harnesses, prompt registries, tracing and observability. Strong Python. If you have built an eval harness before, we want to talk. This role is engineering-heavy and does not require ML research experience.",
+    "url": "https://example.com/jobs/j_005"
+  },
+  {
+    "job_id": "j_006",
+    "title": "Staff Backend Engineer",
+    "company": "Nimbus Data",
+    "location": "New York, NY",
+    "posted": "2026-08-30",
+    "salary_min": 190000,
+    "salary_max": 240000,
+    "description": "Technical leadership across the storage org. 8+ years required. Java, Rust. Architecture review, mentorship, and cross-team design. Hybrid, three days in office.",
+    "url": "https://example.com/jobs/j_006"
+  },
+  {
+    "job_id": "j_007",
+    "title": "Full Stack Engineer",
+    "company": "Tidewater Health",
+    "location": "Boston, MA",
+    "posted": "2026-09-01",
+    "salary_min": 130000,
+    "salary_max": 160000,
+    "description": "Patient-facing web application. React and Node, some Python services. Healthcare domain, HIPAA compliance training provided. Small team, broad ownership.",
+    "url": "https://example.com/jobs/j_007"
+  },
+  {
+    "job_id": "j_008",
+    "title": "AI Solutions Engineer",
+    "company": "Deepfield",
+    "location": "Remote (US)",
+    "posted": "2026-09-10",
+    "salary_min": 145000,
+    "salary_max": 180000,
+    "description": "Customer-facing engineering. Prototype LLM integrations with enterprise customers, then hand them to the product team. Heavy prompt engineering and systems integration. Travel roughly once a month.",
+    "url": "https://example.com/jobs/j_008"
+  }
+]
