@@ -1,0 +1,46 @@
+[
+  { "id": "r01", "category": "single", "query": "Find me backend engineer jobs in Boston",
+    "expected_tools": ["search_jobs"], "expected_args": {"location": "Boston"} },
+  { "id": "r02", "category": "single", "query": "What AI roles are open right now?",
+    "expected_tools": ["search_jobs"], "expected_args": {} },
+  { "id": "r03", "category": "single", "query": "Show me remote positions",
+    "expected_tools": ["search_jobs"], "expected_args": {} },
+
+  { "id": "r04", "category": "single", "query": "Tell me more about job j_002",
+    "expected_tools": ["get_job_details"], "expected_args": {"job_id": "j_002"} },
+  { "id": "r05", "category": "single", "query": "What does j_004 actually require?",
+    "expected_tools": ["get_job_details"], "expected_args": {"job_id": "j_004"} },
+  { "id": "r06", "category": "single", "query": "Give me the full description for j_005",
+    "expected_tools": ["get_job_details"], "expected_args": {"job_id": "j_005"} },
+
+  { "id": "r07", "category": "single", "query": "What have I applied to so far?",
+    "expected_tools": ["list_applications"], "expected_args": {} },
+  { "id": "r08", "category": "single", "query": "Show me my saved jobs",
+    "expected_tools": ["list_applications"], "expected_args": {} },
+  { "id": "r09", "category": "single", "query": "Which of my applications are still in screening?",
+    "expected_tools": ["list_applications"], "expected_args": {"status": "screening"} },
+
+  { "id": "r10", "category": "ambiguous", "query": "What jobs do I have?",
+    "expected_tools": ["list_applications"], "expected_args": {},
+    "note": "'have' implies owned/saved, not available. Tempting to read as search." },
+  { "id": "r11", "category": "ambiguous", "query": "Look up the engineering roles",
+    "expected_tools": ["search_jobs"], "expected_args": {},
+    "note": "'look up' sounds like a lookup tool; it's a search." },
+  { "id": "r12", "category": "ambiguous", "query": "Get me information on the Corvid Labs role",
+    "expected_tools": ["search_jobs"], "expected_args": {},
+    "note": "No job_id given, so get_job_details cannot be called first." },
+
+  { "id": "r13", "category": "multi", "query": "Which Boston job pays best, and what does it require?",
+    "expected_tools": ["search_jobs", "get_job_details"], "expected_args": {} },
+  { "id": "r14", "category": "multi", "query": "Compare the two Corvid Labs roles in detail",
+    "expected_tools": ["search_jobs", "get_job_details", "get_job_details"], "expected_args": {} },
+
+  { "id": "r15", "category": "no_tool", "query": "What makes a good cover letter opening?",
+    "expected_tools": [], "expected_args": {} },
+  { "id": "r16", "category": "no_tool", "query": "How long should I wait before following up after an interview?",
+    "expected_tools": [], "expected_args": {} },
+  { "id": "r17", "category": "no_tool", "query": "Should I include a photo on my resume?",
+    "expected_tools": [], "expected_args": {} },
+  { "id": "r18", "category": "no_tool", "query": "Is it worth negotiating a first offer?",
+    "expected_tools": [], "expected_args": {} }
+]

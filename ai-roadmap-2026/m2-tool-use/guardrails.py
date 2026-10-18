@@ -51,6 +51,13 @@ TOOL_RISK: dict[str, RiskClass] = {
     "update_status":      RiskClass.LOW_BLAST,
     "draft_followup":     RiskClass.READ_ONLY,   # produces text, touches nothing
     "send_followup":      RiskClass.HIGH_BLAST,
+
+    # Aliases for the Week 2 routing experiment, which renames tools to
+    # tool_a/b/c to neutralise the signal their names carry. Risk class is a
+    # property of what a tool DOES, so the alias inherits it unchanged.
+    "tool_a":             RiskClass.READ_ONLY,    # search_jobs
+    "tool_b":             RiskClass.READ_ONLY,    # get_job_details
+    "tool_c":             RiskClass.SCOPED_READ,  # list_applications
 }
 
 
