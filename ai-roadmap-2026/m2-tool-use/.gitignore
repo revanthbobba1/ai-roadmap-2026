@@ -5,3 +5,9 @@ __pycache__/
 logs/*.jsonl
 .DS_Store
 .claude/
+
+# Your real job applications and drafted emails. This is a public portfolio
+# repo — tracked applications name real companies and roles you're pursuing,
+# and the outbox holds messages addressed to real people.
+applications.json
+outbox/

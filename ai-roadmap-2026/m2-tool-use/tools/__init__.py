@@ -24,6 +24,7 @@ reads. Week 3 adds the writes, once the guardrails exist to protect them.
 from . import applications  # noqa: F401  — list_applications
 from . import job_details   # noqa: F401  — get_job_details
 from . import search        # noqa: F401  — search_jobs
+from . import writes        # noqa: F401  — save, update_status, draft, send
 
 #
 # TODO Week 3 — do NOT add these before guardrails.py is built. A write tool

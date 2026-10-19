@@ -116,9 +116,17 @@ class Session:
     The single highest-value guardrail in the whole file: if the model can set
     `owner`, a crafted prompt can read another user's applications. Injecting it
     server-side deletes that vulnerability class rather than guarding against it.
+
+    Server-side parameters travel on the SESSION, not in the arguments. An
+    earlier version injected `owner` into the args dict and re-validated, which
+    `extra="forbid"` rejected — the guardrail fighting its own schema, and a
+    sign the parameter was in the wrong channel.
     """
     owner: str
     budget: Budget = field(default_factory=Budget)
+    # Per-call context from the guardrails — currently the idempotency key.
+    # Set by apply_guardrails, read by whichever tool is about to run.
+    extra: dict = field(default_factory=dict)
 
 
 def inject_server_params(tool_name: str, args: dict, session: Session) -> dict:
@@ -152,59 +160,151 @@ def idempotency_key(session: Session, tool_name: str, args: dict) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
-# ── TODO Week 3 Day 3-4: argument validation beyond the schema ────────────────
-#
-# Pydantic checks types and ranges. It cannot check business rules that depend
-# on stored state. Build:
-#
-#   def validate_call(tool_name, args, backend) -> None:
-#       - update_status: is this transition in LEGAL_TRANSITIONS?
-#         (schemas.py defines the table; rejecting rejected -> screening is here)
-#       - save_application: does job_id actually exist?
-#       - send_followup: does the application exist, and is it in a status where
-#         a follow-up makes sense? Following up on a rejection is a mistake the
-#         model will happily make.
-#
-# Raise GuardrailViolation with a message specific enough that the model can
-# correct itself on the next turn.
+# ── Argument validation beyond the schema ─────────────────────────────────────
+
+def validate_call(tool_name: str, args: dict, session: "Session") -> None:
+    """
+    Business rules Pydantic structurally cannot check.
+
+    A schema validates one call in isolation: types, ranges, formats. It cannot
+    see stored state, so it cannot know that `rejected -> screening` is not a
+    real transition, or that job_id "j_999" does not exist.
+
+    That distinction is worth being precise about in an interview:
+
+        schema validation      is this call WELL-FORMED?
+        business validation    is this call LEGAL, given the current state?
+
+    Anything a prompt can request, a prompt injection can also request — so
+    these checks live in code, never in the system prompt.
+
+    Raises GuardrailViolation with a message specific enough that the model can
+    correct itself on the next turn.
+    """
+    from backend import ApplicationStore, BackendError, FixtureBackend
+    from schemas import LEGAL_TRANSITIONS, AppStatus
+
+    owner = session.owner
+
+    if tool_name == "save_application":
+        try:
+            FixtureBackend().get(args["job_id"])
+        except BackendError:
+            raise GuardrailViolation(
+                f"no job with id {args['job_id']!r}. "
+                f"Call search_jobs first to get a valid job_id.")
+
+    elif tool_name == "update_status":
+        try:
+            app = ApplicationStore().get(args["app_id"], owner)
+        except BackendError as e:
+            raise GuardrailViolation(str(e))
+
+        new = AppStatus(args["new_status"])
+        allowed = LEGAL_TRANSITIONS[app.status]
+        if new not in allowed:
+            # The error names the legal options, so a correction is possible
+            # rather than a guess. Bounded self-correction needs actionable
+            # errors — same lesson as Month 1's retry loop.
+            legal = ", ".join(sorted(s.value for s in allowed)) or "none (terminal)"
+            raise GuardrailViolation(
+                f"cannot move {app.app_id} from '{app.status.value}' to "
+                f"'{new.value}'. Legal transitions from "
+                f"'{app.status.value}': {legal}")
+
+    elif tool_name in ("draft_followup", "send_followup"):
+        try:
+            app = ApplicationStore().get(args["app_id"], owner)
+        except BackendError as e:
+            raise GuardrailViolation(str(e))
+
+        # Following up on a closed application is a mistake the model will
+        # otherwise make happily, and an embarrassing one to send.
+        if app.status in (AppStatus.REJECTED, AppStatus.WITHDRAWN):
+            raise GuardrailViolation(
+                f"{app.app_id} is '{app.status.value}' — a follow-up is not "
+                f"appropriate for a closed application.")
 
 
-# ── TODO Week 3 Day 5-6: the approval gate ────────────────────────────────────
-#
-# def require_approval(tool_name: str, args: dict) -> bool:
-#     """
-#     HIGH_BLAST actions emit a PROPOSAL, not an action.
-#
-#     Print the recipient, subject, and full body. Require an explicit typed
-#     confirmation — not just Enter, which people hit reflexively.
-#
-#     Strong suggestion: do not wire real SMTP. Write the approved email to
-#     outbox/ for you to send by hand. The gate is the lesson; actually
-#     delivering mail adds risk and teaches nothing extra.
-#     """
-#
-# The property worth testing: with the gate in place, is there ANY sequence of
-# model outputs that results in a sent email without your keystroke? If yes, the
-# gate is advisory rather than structural, and structural is the point.
+# ── The approval gate ─────────────────────────────────────────────────────────
+
+class ApprovalDenied(GuardrailViolation):
+    """The human declined. Distinct from a rule violation — nothing was wrong
+    with the call, it just wasn't wanted. The eval counts them separately."""
+
+
+def require_approval(tool_name: str, args: dict, session: "Session",
+                     auto: bool | None = None) -> None:
+    """
+    HIGH_BLAST actions emit a PROPOSAL and stop. They do not act.
+
+    Prints the full content and requires a typed confirmation — not Enter,
+    which people hit reflexively.
+
+    `auto` exists only for tests: True simulates approval, False simulates
+    denial. It is never set from anything the model produces, which is the
+    property that makes the gate structural rather than advisory.
+
+    THE TEST THAT MATTERS: is there any sequence of model outputs that results
+    in a send without a human keystroke? If yes, the gate is decoration.
+    """
+    if auto is not None:
+        if not auto:
+            raise ApprovalDenied(f"{tool_name} was declined by the user")
+        return
+
+    print(f"\n{'!'*70}")
+    print(f"APPROVAL REQUIRED — {tool_name}")
+    print(f"{'!'*70}")
+    for k, v in args.items():
+        if k == "owner":
+            continue
+        print(f"\n{k}:\n{v}")
+    print(f"\n{'!'*70}")
+
+    reply = input("Type SEND to confirm, anything else to cancel: ").strip()
+    if reply != "SEND":
+        raise ApprovalDenied(f"{tool_name} cancelled (typed {reply!r})")
 
 
 # ── Dispatch ──────────────────────────────────────────────────────────────────
 
-def apply_guardrails(tool_name: str, args: dict, session: Session) -> dict:
+def apply_guardrails(tool_name: str, args: dict, session: Session,
+                     auto_approve: bool | None = None) -> dict:
     """
-    Run every guardrail required by this tool's risk class.
-    Returns the arguments to actually execute with.
-    Raises GuardrailViolation if the call is refused.
+    Run every guardrail this tool's risk class requires, in increasing order of
+    cost — cheap checks first, so an expensive one never runs for a call that
+    was going to be refused anyway.
+
+    Returns extra context for the tool (currently the idempotency key, where
+    one applies). Raises GuardrailViolation if the call is refused.
+
+    THE DISPATCH IS THE POINT. Every tool gets validation; only writes get
+    idempotency; only high-blast gets a human. Protection proportional to what
+    the call can damage — uniform guardrails are too strict for a search and
+    too loose for an email.
     """
     risk = TOOL_RISK.get(tool_name)
     if risk is None:
         raise GuardrailViolation(f"unknown tool {tool_name!r}")
 
+    extra: dict = {}
+
+    # 1. BUDGET — cheapest check, and it applies to everything.
     session.budget.check(risk)
-    args = inject_server_params(tool_name, args, session)
 
-    # TODO Week 3: validate_call(tool_name, args, backend)
-    # TODO Week 3: if risk is LOW_BLAST -> attach idempotency_key(...)
-    # TODO Week 3: if risk is HIGH_BLAST -> require_approval(...) or refuse
+    # 2. BUSINESS RULES — all classes. Reads can be invalid too ("show me
+    #    app_999"), and a clear refusal beats a confusing empty result.
+    validate_call(tool_name, args, session)
 
-    return args
+    # 3. IDEMPOTENCY — writes only. A retry must not create a second record.
+    if risk in (RiskClass.LOW_BLAST, RiskClass.HIGH_BLAST):
+        extra["idem_key"] = idempotency_key(session, tool_name, args)
+
+    # 4. HUMAN APPROVAL — high blast only. Last, because it is the only step
+    #    that costs a person's attention, and it should never be spent on a
+    #    call that a cheaper check would have refused.
+    if risk is RiskClass.HIGH_BLAST:
+        require_approval(tool_name, args, session, auto=auto_approve)
+
+    return extra

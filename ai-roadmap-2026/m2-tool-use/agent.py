@@ -82,7 +82,8 @@ Never take an irreversible action without being explicit about what you are \
 about to do."""
 
 
-def execute_tool(name: str, raw_args: dict, session: Session) -> str:
+def execute_tool(name: str, raw_args: dict, session: Session,
+                 auto_approve: bool | None = None) -> str:
     """
     Validate, guard, and run one tool call.
 
@@ -101,9 +102,12 @@ def execute_tool(name: str, raw_args: dict, session: Session) -> str:
         #    what stops the model supplying a parameter it shouldn't have.
         args = tool.args_model.model_validate(raw_args)
 
-        # 2. guardrails — budget, and (Week 3) validation, idempotency, approval
-        apply_guardrails(name, args.model_dump(), session)
+        # 2. guardrails — budget, business rules, idempotency, approval gate.
+        #    Returns extra context (e.g. an idempotency key) for the tool.
+        extra = apply_guardrails(name, args.model_dump(), session,
+                                 auto_approve=auto_approve)
         session.budget.record(TOOL_RISK[name])
+        session.extra = extra
 
         # 3. run it, passing the SESSION as context.
         #
