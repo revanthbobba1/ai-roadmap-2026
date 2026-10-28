@@ -1,16 +1,19 @@
 """
 schemas.py — Month 2
 
-Pydantic models for tool arguments and stored records.
+WHAT      Every Pydantic model in the project. Two kinds:
+            ARGUMENT models — what a tool accepts. These become tool schemas.
+            RECORD models   — what gets stored. These never reach the model.
+EXPORTS   Job, Application, AppStatus, LEGAL_TRANSITIONS, + one Args model
+          per tool (all with extra="forbid").
+USED BY   every layer. This is the shared vocabulary.
+
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 Same single-source-of-truth pattern as Month 1: each tool's argument model
 generates the JSON Schema handed to the provider AND validates what comes back.
 A hand-written tool schema that disagrees with your validator is a bug that only
 shows up in production.
-
-Two kinds of model live here:
-  - ARGUMENT models  what a tool accepts. These become tool schemas.
-  - RECORD models    what gets stored. These never reach the model.
 """
 
 import datetime as _dt

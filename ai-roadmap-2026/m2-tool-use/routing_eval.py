@@ -1,8 +1,17 @@
 """
 routing_eval.py — Month 2, Week 2
 
-Measure how well the model picks tools, and how much of that is down to the
-descriptions.
+WHAT      The CHEAP eval. Scores tool *choice* only: one API call per case,
+          no tool execution, no multi-turn. 18 cases in eval_sets/routing.json.
+MEASURES  selection accuracy, argument accuracy, over-retrieval rate.
+NOT THIS  whether the agent finished the job — that's agent_eval.py, ~30x the
+          cost. Run this one on every description tweak, that one before commit.
+USES      descriptions.py, to compare description variants.
+
+Run:  python routing_eval.py                 both variants
+      python routing_eval.py overlapping     just one
+
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 THREE METRICS, BECAUSE THEY HAVE THREE DIFFERENT FIXES
 ------------------------------------------------------
@@ -26,9 +35,6 @@ TRAJECTORY MATCHING IS SET-BASED
 Compared as sets, not exact sequences. If a question needs search_jobs and
 get_job_details, the order is usually forced by data dependency anyway, and
 demanding an exact sequence manufactures failures that are not real.
-
-Run:  python routing_eval.py                 both variants
-      python routing_eval.py overlapping     just one
 """
 
 import json

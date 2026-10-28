@@ -1,6 +1,12 @@
 """
 tools/job_details.py — get_job_details
 
+WHAT   READ_ONLY. Turns a job id into the full posting.
+WHY    The tool that makes CHAINING possible — and therefore the reason this is
+       an agent rather than a single function call.
+
+══════════════════════════ reasoning and notes below ══════════════════════════
+
 The second read tool, and the one that makes CHAINING possible. search_jobs
 returns ids; this turns an id into a full description. The model cannot know
 which id to ask about until the search comes back, so a question like "which of

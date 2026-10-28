@@ -3,3 +3,9 @@ openai>=1.50.0
 python-dotenv>=1.0.0
 pydantic>=2.9.0
 httpx>=0.27.0
+
+# Week 5 — the LangGraph port. Only langgraph_agent.py imports these; the
+# hand-built agent in agent.py has no framework dependency, deliberately, so
+# the baseline stays runnable if a framework upgrade breaks.
+langgraph>=1.2.0
+langchain-anthropic>=1.7.0

@@ -1,10 +1,13 @@
 """
 backend.py — Month 2
 
-Where data actually lives. Two implementations behind one interface:
+WHAT      Data access, the bottom layer. Two implementations, one interface:
+            FixtureBackend  recorded postings from fixtures/jobs.json
+            LiveBackend     a real job-search API
+EXPORTS   FixtureBackend, LiveBackend, BackendError
+CALLED BY tools/*.py only. The agent never touches this directly.
 
-  FixtureBackend   reads recorded job postings from fixtures/jobs.json
-  LiveBackend      hits a real job-search API            (Week 5)
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 WHY BOTH — record and replay
 ----------------------------

@@ -1,15 +1,21 @@
 """
 tools/writes.py — the four tools that change something.
 
-Built AFTER guardrails.py, deliberately. A save_application without an
-idempotency key duplicates records on every retry, and a send_followup without
-an approval gate eventually emails someone by accident. The protection has to
-exist before the capability does.
-
+WHAT
     save_application   LOW_BLAST    reversible; idempotency key
     update_status      LOW_BLAST    reversible; legal-transition check
     draft_followup     READ_ONLY    produces text, touches nothing
     send_followup      HIGH_BLAST   reaches a real person; approval gate
+
+KEY    draft_followup is READ_ONLY despite sounding like a write. Risk class is
+       about consequences, not verbs.
+
+══════════════════════════ reasoning and notes below ══════════════════════════
+
+Built AFTER guardrails.py, deliberately. A save_application without an
+idempotency key duplicates records on every retry, and a send_followup without
+an approval gate eventually emails someone by accident. The protection has to
+exist before the capability does.
 
 Note draft_followup is READ_ONLY despite sounding like a write. Risk class is
 about consequences, not verbs — writing a draft to the screen changes nothing.

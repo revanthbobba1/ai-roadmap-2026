@@ -1,7 +1,14 @@
 """
 guardrails.py — Month 2, Week 3
 
-Protection proportional to what a tool can damage.
+WHAT      The safety layer. Protection proportional to what a tool can damage.
+EXPORTS   RiskClass, TOOL_RISK, Session, Budget, apply_guardrails(),
+          idempotency_key(), validate_call(), require_approval()
+          Exceptions: GuardrailViolation, ApprovalDenied, BudgetExceeded
+CALLED BY agent.execute_tool, in this order:
+          budget -> business rules -> idempotency (writes) -> approval (high-blast)
+
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 THE CORE IDEA
 -------------
@@ -21,11 +28,14 @@ Proof you understand this, and the stated closure criterion for the Q2
 interview gap: given an arbitrary tool set, classify it and name the guardrail
 each class needs.
 
-WHAT IS BUILT HERE vs. WHAT YOU BUILD
--------------------------------------
-The risk enum, the registry of which tool is which class, and the dispatch
-skeleton are done. The individual guardrails are Week 3's work and are marked
-TODO with the reasoning attached.
+DISPATCH ORDER IS NOT ARBITRARY
+-------------------------------
+budget -> business rules -> idempotency -> approval.
+
+Budget first because it is the cheapest check and the only one that should stop
+a runaway loop regardless of what the call is. Approval last because it is the
+only one that costs a human's attention — never interrupt someone to approve a
+call that was going to fail validation anyway.
 """
 
 import hashlib

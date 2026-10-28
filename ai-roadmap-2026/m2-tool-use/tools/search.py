@@ -1,8 +1,14 @@
 """
-tools/search.py — the worked example.
+tools/search.py — search_jobs
 
-One tool, complete, so the shape is clear. Every other tool follows this
-pattern: a description, an argument model, a function, and a register() call.
+WHAT   READ_ONLY. Keyword + location search over job postings. Returns ids.
+SHAPE  The worked example — every other tool follows this pattern:
+       a description, an argument model, a function, and a register() call.
+NOTE   `query` is OPTIONAL. It was required until the model sent query="job",
+       which matched nothing. A required field the caller cannot always fill is
+       a schema bug, not a model bug.
+
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 ON THE DESCRIPTION
 ------------------

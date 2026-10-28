@@ -1,7 +1,13 @@
 """
 tools/applications.py — list_applications
 
-The first SCOPED_READ tool: it reads your data rather than public job postings.
+WHAT   SCOPED_READ. Lists YOUR tracked applications, optionally by status.
+KEY    ListApplicationsArgs has NO `owner` field, deliberately. The owner comes
+       from the session, so there is no slot for the model to fill with someone
+       else's id. Removing the parameter deletes the vulnerability; validating
+       one the model supplied would only guard it.
+
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 WHY THAT MATTERS
 ----------------

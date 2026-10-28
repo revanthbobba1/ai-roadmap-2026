@@ -89,20 +89,58 @@ _(fill in — roughly what does a full eval run cost?)_
 
 ## Files
 
+How the pieces fit. Each layer only knows about the one below it.
+
+```
+          ┌─────────── the agent loop ────────────┐
+          │  agent.py            hand-built       │
+          │  langgraph_agent.py  LangGraph port   │
+          └───────────────────┬───────────────────┘
+                              │ execute_tool()
+                     ┌────────▼────────┐
+                     │  guardrails.py  │  budget → rules → idempotency → approval
+                     └────────┬────────┘
+                     ┌────────▼────────┐
+                     │ tools/registry  │  name + description + schema + fn
+                     │ tools/*.py      │  the seven tools
+                     └────────┬────────┘
+                     ┌────────▼────────┐
+                     │   backend.py    │  FixtureBackend / LiveBackend
+                     └────────┬────────┘
+                   fixtures/jobs.json, applications.json
+
+  schemas.py ──> used by every layer above (the shared type definitions)
+```
+
+**Runtime**
+
 | File | Purpose |
 |------|---------|
-| `agent.py` | The ReAct loop |
-| `tools/` | One module per tool, plus the registry |
-| `schemas.py` | Pydantic models → JSON Schema |
-| `guardrails.py` | Risk classes, validation, budgets, approval gate |
-| `backend.py` | Fixture store; live API behind the same interface |
-| `fixtures/` | Recorded job postings — keeps the eval reproducible |
-| `agent_eval.py` | Trajectory + outcome scoring |
-| `eval_sets/` | The four eval categories |
-| `applications.json` | Your actual tracked applications |
-| `agent_design.md` | Written analysis |
-| `llm_client.py` | Carried over from Month 1 |
-| `logs/` | Traces (gitignored) |
+| `agent.py` | The ReAct loop and `execute_tool`. The heart of the project. |
+| `langgraph_agent.py` | The same agent on LangGraph, wrapped so guardrails survive the port. |
+| `guardrails.py` | `Session`, `Budget`, risk classes, legal-transition rules, idempotency, approval gate. |
+| `schemas.py` | Pydantic models. Do double duty: generate the JSON Schema the model sees *and* validate what it sends back, so the two can't drift. |
+| `backend.py` | Data access. `FixtureBackend` for reproducible evals, `LiveBackend` for real use. |
+| `tools/registry.py` | The `Tool` dataclass, the `REGISTRY` dict, and the Anthropic/OpenAI wire formats. |
+| `tools/search.py`, `job_details.py`, `applications.py`, `writes.py` | The seven tools, grouped read vs. write. |
+
+**Evaluation** — two suites, because they answer different questions at very different costs.
+
+| File | Purpose |
+|------|---------|
+| `routing_eval.py` | Tool *choice* only: one API call per case, nothing executed. Cheap enough to re-run on every description tweak. |
+| `agent_eval.py` | Full multi-turn runs, N times each, scoring trajectory + outcome + failure attribution. ~30× the cost — a pre-commit gate, not an inner-loop check. |
+| `descriptions.py` | The 2×2 description variants (overlapping vs. separable × real names vs. `tool_a/b/c`). Used only by `routing_eval`. |
+| `eval_sets/*.json` | The test cases, as data rather than code. |
+
+**Reference and carryover**
+
+| File | Purpose |
+|------|---------|
+| `one_turn.py` | A teaching script: one round trip with every step printed. Imported by nothing — `agent.py` is this in a loop. Kept as something to re-read before an interview. |
+| `llm_client.py` | Month 1's API wrapper. The agent talks to the SDK directly, so the only thing still used here is `calculate_cost`. |
+| `agent_design.md` | The written analysis. |
+| `fixtures/`, `applications.json`, `logs/` | Recorded postings; your real tracked applications; traces. The last two are gitignored. |
 
 ---
 

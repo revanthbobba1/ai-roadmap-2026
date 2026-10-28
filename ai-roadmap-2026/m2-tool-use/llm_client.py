@@ -1,10 +1,13 @@
 """
-llm_client.py — Month 1
+llm_client.py — Month 1 carryover
 AI Roadmap 2026 | Rev Bobba
 
-Carried over from Month 0's api_explorer.py. This is the working API layer —
-you shouldn't need to change much here. Month 1's new work lives in
-prompt_library.py and eval_harness.py.
+WHAT      Month 1's single-shot API wrapper: one prompt in, one answer out,
+          across two providers. Built for the prompting experiments.
+STATUS    Mostly unused in Month 2. The agent talks to the SDK directly,
+          because this wrapper has no concept of multi-turn message lists or
+          tools=. The ONLY thing still imported from here is calculate_cost.
+          Don't try to fit it into the agent's architecture — it isn't part of it.
 
 Provides:
   - LLMResponse       : structured record of one API call
@@ -12,6 +15,7 @@ Provides:
   - call_openai()     : async OpenAI call with retry
   - compare()         : both models in parallel
   - save_log()        : append a response to logs/YYYY-MM-DD.jsonl
+  - calculate_cost()  : <- the one Month 2 uses
 """
 
 import asyncio

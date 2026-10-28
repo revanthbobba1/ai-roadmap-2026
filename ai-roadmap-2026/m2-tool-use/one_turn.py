@@ -1,7 +1,15 @@
 """
 one_turn.py — Month 2, Week 1 Day 1-2
 
-The single round trip, with every step printed.
+WHAT      A teaching script: ONE tool-use round trip with every step printed.
+          No loop, no guardrails, ~40 lines of logic under the print statements.
+STATUS    Imported by nothing. agent.py is this, in a loop, with guardrails.
+          Kept as reference — re-read it before an interview, don't build on it.
+
+Run:  python one_turn.py
+      python one_turn.py "any question you like"
+
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 WHY THIS FILE EXISTS SEPARATELY FROM agent.py
 ---------------------------------------------
@@ -17,9 +25,6 @@ THE FOUR STEPS
 
 Step 3 is the part Month 1 never did. Month 1 forced a single tool call and read
 the arguments; it never fed a result back or let the model continue.
-
-Run:  python one_turn.py
-      python one_turn.py "any question you like"
 """
 
 import json

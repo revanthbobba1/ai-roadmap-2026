@@ -1,8 +1,16 @@
 """
 agent.py — Month 2, Week 1
 
-The ReAct loop. This file is deliberately incomplete: writing the loop IS the
-Week 1 exercise, and it is about 40 lines.
+WHAT      The hand-built ReAct loop, plus execute_tool (validate -> guard ->
+          run). The core of the project; everything else serves it.
+EXPORTS   run(query, session, max_iterations) -> (final_text, trace)
+          execute_tool(name, raw_args, session) -> str
+USED BY   agent_eval.py as the `handbuilt` implementation.
+SEE ALSO  langgraph_agent.py — the same thing on a framework.
+
+Run:  python agent.py "find me backend engineer jobs in Boston"
+
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 WHAT THE LOOP IS
 ----------------

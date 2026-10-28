@@ -1,7 +1,19 @@
 """
 agent_eval.py — Month 2, Week 4
 
-Evaluating an agent, which is different from evaluating a prompt in three ways.
+WHAT      The EXPENSIVE eval. Full multi-turn runs, N times per case, scoring
+          trajectory + outcome + failure attribution. 12 cases x N runs.
+MEASURES  pass rate, pass^k, step efficiency, which bucket each failure lands in.
+NOT THIS  tool choice in isolation — that's routing_eval.py, ~1/30th the cost.
+SCORES    either implementation: `run` from agent.py, or run_langgraph.
+
+Run:  python agent_eval.py                      hand-built, N=3
+      python agent_eval.py 5                    hand-built, N=5
+      python agent_eval.py 5 langgraph          LangGraph, N=5
+
+══════════════════════════ reasoning and notes below ══════════════════════════
+
+Evaluating an agent is different from evaluating a prompt in three ways.
 
 1. TRAJECTORY AS WELL AS OUTCOME
    Outcome asks "was the answer right". Trajectory asks "was the path sensible".
@@ -36,17 +48,23 @@ surface form, so should_refuse cases get a grounded binary judge instead —
 the Month 1 pattern. Spending judge calls only there keeps the suite cheap
 enough to actually re-run, and a suite expensive enough to skip catches nothing.
 
-Run:  python agent_eval.py              N=3
-      python agent_eval.py 5            N=5
+COMPARING TWO IMPLEMENTATIONS
+-----------------------------
+Week 5 added langgraph_agent.py — the same agent on LangGraph. Both expose
+run(query, session, max_iterations) -> (final, trace), so the SAME eval scores
+either one. That is deliberate: a comparison where each side is measured by a
+different instrument measures the instruments.
 """
 
 import json
 import os
 import sys
+import time
 from collections import Counter
 
 import anthropic
 from dotenv import load_dotenv
+from langgraph.errors import GraphRecursionError
 
 import tools  # noqa: F401
 from agent import IterationCapExceeded, run
@@ -182,15 +200,24 @@ def score_run(case: dict, final: str, trace: list[dict], capped: bool) -> dict:
 
 # ── Running one case N times ──────────────────────────────────────────────────
 
-def eval_case(case: dict, n: int) -> dict:
-    runs, cost = [], 0.0
+def eval_case(case: dict, n: int, runner=run) -> dict:
+    runs, cost, latencies = [], 0.0, []
     for _ in range(n):
         session = Session(owner="rev", budget=Budget(max_tool_calls=8))
         capped = False
+        t0 = time.perf_counter()
         try:
-            final, trace = run(case["query"], session, max_iterations=8)
+            final, trace = runner(case["query"], session, max_iterations=8)
         except IterationCapExceeded:
             final, trace, capped = "", [], True
+        except GraphRecursionError:
+            # LangGraph's equivalent of IterationCapExceeded. Different
+            # exception type, same event — caught here so "got stuck" lands in
+            # the `capped` bucket for both implementations rather than crashing
+            # the suite for one of them. Comparable metrics require comparable
+            # failure handling.
+            final, trace, capped = "", [], True
+        latencies.append(time.perf_counter() - t0)
         cost += session.budget.usd_used
         runs.append(score_run(case, final, trace, capped))
 
@@ -210,6 +237,10 @@ def eval_case(case: dict, n: int) -> dict:
         "avg_steps": sum(steps) / n,
         "min_steps": runs[0]["min_steps"],
         "cost": cost,
+        # Latency per case. MEDIAN, not mean: one slow API call shouldn't move
+        # the number, and with n=5 a single outlier swings a mean badly.
+        "median_latency": sorted(latencies)[len(latencies) // 2],
+        "latencies": latencies,
     }
 
 
@@ -220,18 +251,37 @@ def report(rows: list[dict], n: int):
     print(f"AGENT EVAL — {len(rows)} cases x {n} runs")
     print(f"{'='*78}")
     print(f"{'ID':<6}{'CATEGORY':<15}{'PASS':<9}{'TRAJ':<8}{'OUTCOME':<10}"
-          f"{'STEPS':<10}{'pass^k'}")
+          f"{'STEPS':<10}{'MED s':<8}{'pass^k'}")
     for r in rows:
         steps = f"{r['avg_steps']:.1f}/{r['min_steps']}"
         print(f"{r['id']:<6}{r['category']:<15}{r['pass_rate']:<9.0%}"
               f"{r['trajectory_rate']:<8.0%}{r['outcome_rate']:<10.0%}"
-              f"{steps:<10}{'yes' if r['pass_k'] else 'NO'}")
+              f"{steps:<10}{r['median_latency']:<8.2f}"
+              f"{'yes' if r['pass_k'] else 'NO'}")
 
     print(f"\n{'-'*78}")
     n_cases = len(rows)
     print(f"  mean pass rate      {sum(r['pass_rate'] for r in rows)/n_cases:.0%}")
     print(f"  pass^k ({n}/{n})        {sum(r['pass_k'] for r in rows)}/{n_cases} cases")
     print(f"  total cost          ${sum(r['cost'] for r in rows):.4f}")
+
+    # Latency, reported as median and p95 across EVERY run rather than per case.
+    #
+    # Why both: the median says what a typical request feels like, p95 says what
+    # the slow tail looks like. An implementation can match on the median and be
+    # much worse at p95 — that is the shape of a serialization or retry cost, and
+    # it is the number users actually complain about.
+    #
+    # p95 (95th percentile) = the value 95% of runs come in under. With 60 runs
+    # it is roughly the 3rd-slowest, so treat it as indicative, not precise;
+    # a stable p95 wants hundreds of samples.
+    all_lat = sorted(l for r in rows for l in r["latencies"])
+    if all_lat:
+        med = all_lat[len(all_lat) // 2]
+        p95 = all_lat[min(int(len(all_lat) * 0.95), len(all_lat) - 1)]
+        print(f"  latency median      {med:.2f}s   ({len(all_lat)} runs)")
+        print(f"  latency p95         {p95:.2f}s")
+        print(f"  wall clock total    {sum(all_lat):.1f}s")
 
     print("\n  by category")
     for cat in sorted({r["category"] for r in rows}):
@@ -271,13 +321,26 @@ def report(rows: list[dict], n: int):
 
 def main():
     n = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_N
+    impl = sys.argv[2] if len(sys.argv) > 2 else "handbuilt"
+
+    if impl == "langgraph":
+        # Imported lazily so the hand-built path has no LangGraph dependency
+        # at call time — the baseline must stay runnable if the framework
+        # breaks on an upgrade. (The GraphRecursionError import above is
+        # top-level only because it's needed in the except clause.)
+        from langgraph_agent import run_langgraph as runner
+    else:
+        runner = run
+
     cases = json.load(open(EVAL_SET))
     rows = []
+    print(f"\nimplementation: {impl}")
     for case in cases:
-        r = eval_case(case, n)
+        r = eval_case(case, n, runner)
         rows.append(r)
         print(f"  {r['id']} {r['category']:<15} {r['pass_rate']:.0%}")
     report(rows, n)
+    print(f"  implementation      {impl}\n")
 
 
 if __name__ == "__main__":

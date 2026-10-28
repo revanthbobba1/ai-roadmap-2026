@@ -1,8 +1,12 @@
 """
 tools/registry.py — Month 2, Week 1
 
-The tool registry: the list of tools you hand the model, each with a name, a
-natural-language description, and a JSON Schema.
+WHAT      The Tool dataclass and the REGISTRY dict. A Tool is four things:
+          name, description, args_model (Pydantic), fn.
+EXPORTS   Tool, REGISTRY, register(), get(), specs(provider)
+          specs() emits Anthropic or OpenAI wire format from the same Tool.
+
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 THE DESCRIPTION IS THE ROUTER
 -----------------------------

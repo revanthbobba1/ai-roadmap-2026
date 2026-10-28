@@ -1,8 +1,14 @@
 """
 descriptions.py — Month 2, Week 2
 
-Two sets of tool descriptions, so the effect of description design can be
-measured rather than asserted.
+WHAT      Alternative tool descriptions, so description design can be MEASURED
+          rather than asserted. A 2x2: OVERLAPPING vs. SEPARABLE wording,
+          crossed with real names vs. NEUTRAL_NAMES (tool_a/b/c).
+EXPORTS   apply(variant) — swaps descriptions on the live registry
+          real_name(alias) — maps tool_a back to search_jobs
+USED BY   routing_eval.py only. Not part of the runtime.
+
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 THE EXPERIMENT
 --------------

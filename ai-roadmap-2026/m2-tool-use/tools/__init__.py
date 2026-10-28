@@ -1,8 +1,11 @@
 """
 tools/ — the tool set for the job application agent.
 
-Importing this package registers every tool. agent.py does `import tools` and
-the registry is populated.
+WHAT   Importing this package registers all seven tools as a side effect.
+       `import tools` is why agent.py's registry is populated — which is also
+       why it carries a `# noqa: F401` there; it looks unused and isn't.
+
+══════════════════════════ reasoning and notes below ══════════════════════════
 
 THE RISK SPREAD IS THE CURRICULUM
 ---------------------------------
@@ -17,8 +20,8 @@ THE RISK SPREAD IS THE CURRICULUM
 Guardrails only make sense when tools differ in what they can damage. This set
 differs a lot, which is why it was chosen.
 
-Week 1 builds search_jobs (done below as the worked example) and the two other
-reads. Week 3 adds the writes, once the guardrails exist to protect them.
+Week 1 built search_jobs as the worked example plus the two other reads; Week 3
+added the writes, once the guardrails existed to protect them.
 """
 
 from . import applications  # noqa: F401  — list_applications
