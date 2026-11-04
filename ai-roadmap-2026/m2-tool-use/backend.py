@@ -118,6 +118,7 @@ class ApplicationStore:
     evaluation, not persistence.
     """
 
+
     def __init__(self, path: Path = STORE):
         self.path = path
 
@@ -187,3 +188,45 @@ class ApplicationStore:
                 self._save(rows)
                 return Application.model_validate(r)
         raise BackendError(f"no application {app_id!r}")
+
+
+# ── The store seam ────────────────────────────────────────────────────────────
+#
+# WHY THIS EXISTS
+# The tools used to each hold their own `ApplicationStore()` built at import
+# time, which hard-wired them to the real applications.json. That made the eval
+# read live user data: e03 ("what am I tracking?") scored against whatever
+# happened to be saved that day, so the same suite gave different answers on
+# different days and could not assert anything about content.
+#
+# A test that reads production data is not reproducible, and a test that WRITES
+# to it is worse — e05 saves an application, so running the eval mutated the
+# real tracker.
+#
+# Tools now call app_store() instead of holding one. The eval calls use_store()
+# to point at a seeded temp file per run. This is the standard fix (a test seam,
+# or dependency injection); the cost is one indirection, and it buys an eval
+# that is both reproducible and incapable of touching real data.
+
+_active: ApplicationStore | None = None
+
+
+def app_store() -> ApplicationStore:
+    """The store the tools should use. Built on first call, not at import."""
+    global _active
+    if _active is None:
+        _active = ApplicationStore(STORE)
+    return _active
+
+
+def use_store(path: Path | str) -> ApplicationStore:
+    """Point every tool at a different store. For evals and tests only."""
+    global _active
+    _active = ApplicationStore(Path(path))
+    return _active
+
+
+def reset_store() -> None:
+    """Back to the real applications.json."""
+    global _active
+    _active = None

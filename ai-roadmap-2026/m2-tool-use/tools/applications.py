@@ -23,12 +23,11 @@ Week 3 tests this adversarially: craft an input trying to read another user's
 data and confirm it is impossible rather than merely discouraged.
 """
 
-from backend import ApplicationStore
+from backend import app_store
 from schemas import ListApplicationsArgs
 
 from .registry import Tool, register
 
-_store = ApplicationStore()
 
 
 def _run(args: ListApplicationsArgs, ctx) -> str:
@@ -36,7 +35,7 @@ def _run(args: ListApplicationsArgs, ctx) -> str:
     # off the session here rather than off the validated arguments.
     owner = getattr(ctx, "owner", "rev") if ctx else "rev"
 
-    apps = _store.list(owner, args.status)
+    apps = app_store().list(owner, args.status)
     if not apps:
         scope = f" with status '{args.status.value}'" if args.status else ""
         return f"No saved applications{scope}."

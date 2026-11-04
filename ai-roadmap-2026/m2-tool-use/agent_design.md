@@ -665,4 +665,181 @@ conclusion from this suite should be read as "no difference detected", never as
 
 ## Section 5: When You Would NOT Build an Agent
 
+Built as `workflow.py` and scored on the same suite, so this is measured rather
+than argued.
+
+### What a workflow is, precisely
+
+An agent's defining feature is that the model decides **whether** to call a tool
+and **which** one. Remove that and you have a workflow. In `workflow.py` the
+shape is fixed:
+
+```
+question
+  |
+  +-- LLM call 1   extract search arguments (tool_choice FORCES search_jobs)
+  +-- search_jobs                          (plain Python)
+  +-- get_job_details x 3                  (plain Python, in a loop)
+  +-- LLM call 2   answer from what was retrieved
+```
+
+Two LLM calls, every time, whatever the question. The model is used twice, both
+times for language work: reading the question into parameters, and writing the
+answer from retrieved text. Everything between is ordinary function calls.
+
+Note how thin the line is. `tool_choice={"type": "tool", "name": "search_jobs"}`
+is the entire difference for step 1, and steps 2–3 are a workflow simply because
+no API call asks the model what to do next.
+
+This is also the shape of naive RAG — retrieve unconditionally, stuff context,
+generate — which is why it is worth building before Month 3.
+
+### Results, 12 cases x 5 runs
+
+| | hand-built agent | LangGraph | workflow |
+|---|---|---|---|
+| mean pass rate | 100% | 100% | **25%** |
+| pass^k (5/5) | 12/12 | 12/12 | 3/12 |
+| total cost | $0.2402 | $0.2196 | **$0.1074** |
+| median latency | 3.38s | 3.12s | **2.12s** |
+| p95 latency | 6.86s | 6.75s | **3.38s** |
+| variance | present | present | **zero** |
+
+The workflow is 55% cheaper, 35% faster at the median, 50% better at p95 — and
+answers a quarter of the questions.
+
+Zero variance is exact, not approximate. Every case scored 100% or 0%, never
+anything between, and the FLAKY section did not print. Same path every run, same
+result every run. Neither agent can offer that.
+
+### Where it failed, and the failures are not all the same kind
+
+**Wasteful but correct (e01, e04, e06).** Passed, at 4 steps against a minimum of
+1 or 2. One search plus three unconditional detail fetches. The agent fetched
+details only for the job it needed; the pipeline cannot know which, so
+`DETAIL_TOP_N = 3` is a guess. Set it low and the answer may be in result 4; set
+it high and every request over-fetches. There is no correct value, and needing to
+pick one is the cost of removing the decision.
+
+**No path to the right tool (e02, e03, e05).** e02 asks about job `j_005` by id;
+the pipeline can only search, and "j_005" is not text in any posting, so the
+search returns nothing. e03 asks what the user is tracking, which needs
+`list_applications`. e05 asks to save something, which needs
+`save_application`. None of those tools are wired into the pipeline, so no
+question can reach them.
+
+The fix differs from a routing failure. A misroute is fixed by rewriting a
+description. This is fixed by adding a branch, or by using an agent.
+
+**Retrieved when nothing was needed (e07–e09).** Advice questions — cover letter
+openings, follow-up timing, negotiating. The pipeline searched and fetched four
+times, then answered. The answer was often fine, but four tool calls and an
+inflated context bought nothing.
+
+### The finding worth taking to an interview
+
+All three `should_refuse` cases scored 100% on **outcome** while failing
+trajectory. The pipeline cannot apply to jobs or send email, so it declined.
+
+But the reason matters, and there are two of them:
+
+1. The final LLM call saw a system prompt about being a job assistant and a
+   context of job postings, and concluded it had no way to apply. That is a
+   model judgment — the same kind of soft refusal an agent gives.
+2. There is no code path to `send_followup` at all.
+
+Only the second is enforcement. And it generalises:
+
+> In a workflow, blast radius is a design-time property.
+> In an agent, it is a runtime one.
+
+A tool the pipeline never calls needs no approval gate, because nothing can
+reach it. An agent holding the same tool needs a gate on every request, forever,
+because the decision is remade each time.
+
+That is a real argument for workflows wherever the task permits one. The safest
+agent is the one that was not built.
+
+### Cost is not simply lower
+
+The workflow made **fewer LLM calls** (2 vs 3) and **more tool calls** (4 vs 2).
+It looks cheap here because the tools are local fixture reads — free and
+instant.
+
+If `get_job_details` were a paid API or a slow database query, those two extra
+calls would swamp the model call saved. So "a workflow is cheaper" is not a
+general claim. It is cheaper when model calls dominate, and more expensive when
+tool calls do. Worth knowing which regime you are in before choosing.
+
+### The decision
+
+| Situation | Build |
+|---|---|
+| Queries are uniform and the data needed is predictable | Workflow. Cheaper, faster, deterministic, and safe by construction. |
+| High-blast tools in the mix, and the task permits a fixed path | Workflow. Removing the capability beats guarding it. |
+| Query types are mixed, and the tool needed depends on the question | Agent. The workflow scored 0% on three whole categories for exactly this reason. |
+| Steps depend on earlier results in a way you cannot enumerate | Agent. |
+| Determinism is a requirement — audit, compliance, reproducibility | Workflow. An agent cannot promise the same path twice. |
+
+**The production answer is usually neither, it is both.** A deterministic
+pre-filter — a cheap classifier or intent match running *before* the model —
+routes advice questions straight to a plain LLM call, tracker questions to
+`list_applications`, and job questions into the retrieval pipeline, with the
+agent reserved for whatever does not match. That recovers most of e02, e03 and
+e07–e09 at workflow cost.
+
+It is deliberately not built here, because building it first would have blurred
+the comparison. The clean version of each is what makes the hybrid's value
+legible.
+
+### What the workflow taught about the eval
+
+Running a deliberately limited implementation found four cases that were not
+testing what their names claimed. All four passed for the wrong reason:
+
+| Case | Scored 100% while | Fix |
+|---|---|---|
+| e03 | answering "I don't have information about what you're tracking" | `must_contain: ["Westwind"]` — a token only the tracker can produce |
+| e05 | saving nothing | `expect_saved` — read the store back after the run |
+| e07–e09 | not answering at all | a grounded binary judge on answer quality |
+| e12 | — | `must_not_contain: ["Nimbus"]`, since the judge grades wording and would miss a data leak |
+
+Two deeper problems behind them.
+
+**The eval was using live data.** Tools built their store at import time, hard
+wired to the real `applications.json`. So e03 scored against whatever happened to
+be saved that day — which is why `must_contain` was empty, since the right answer
+was unknowable when the case was written. Worse, e05 *writes*, so running the
+suite mutated the real tracker and five runs were not independent samples. Fixed
+with a store seam (`app_store()` / `use_store()`) and a seeded fixture copied
+fresh before every run.
+
+**Then the fix had the same bug it was fixing.** `expect_saved: "j_005"` was
+added to e05 — but the seed contained `j_005`, placed there for e03 to read. The
+assertion passed before the agent did anything.
+
+> An assertion about a change has to start from a state where it is false.
+
+The seed now holds `j_900` (Westwind Robotics, a job absent from the board) so
+e03 has something tracker-only to find, and `j_005` is absent so e05's save is
+detectable. Confirmed by the workflow's e05 outcome dropping 100% -> 0%.
+
+`validate_eval_set()` now runs before the suite spends anything, and fails loudly
+if an `expect_saved` target is already seeded or a case has no outcome assertion.
+That guard exists because a passing test and a vacuous test look identical from
+outside: the suite printed 100% either way, and nothing in a normal run would
+ever have said otherwise.
+
+### A note on the attribution buckets
+
+`wrong_tool` was labelled "tool descriptions misled it", which is wrong for a
+workflow — no description misled anything, because no model chose anything. The
+taxonomy assumed a model making a choice that could be bad. Relabelled to cover
+both causes, since the eval cannot distinguish them from the trace alone: it sees
+a wrong tool list either way.
+
+Worth noticing that an eval design can carry assumptions about the
+implementation it was built against, and those assumptions only surface when
+something different runs through it.
+
 _(Week 6 — the workflow comparison)_

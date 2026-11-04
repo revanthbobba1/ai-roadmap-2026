@@ -24,14 +24,13 @@ something useful to do that cannot hurt, and concentrates all the danger in one
 tool you can guard heavily.
 """
 
-from backend import ApplicationStore, BackendError, FixtureBackend
+from backend import BackendError, FixtureBackend, app_store
 from schemas import (DraftFollowupArgs, SaveApplicationArgs, SendFollowupArgs,
                      UpdateStatusArgs)
 
 from .registry import Tool, register
 
 _jobs = FixtureBackend()
-_store = ApplicationStore()
 
 
 def _owner(ctx) -> str:
@@ -44,7 +43,7 @@ def _save(args: SaveApplicationArgs, ctx) -> str:
     job = _jobs.get(args.job_id)          # existence already checked upstream
     idem = getattr(ctx, "extra", {}).get("idem_key")
 
-    app = _store.save(job, _owner(ctx), args.notes, idem_key=idem)
+    app = app_store().save(job, _owner(ctx), args.notes, idem_key=idem)
     return (f"Saved {app.app_id}: {app.title} @ {app.company} "
             f"(status: {app.status.value})")
 
@@ -68,7 +67,7 @@ def _update(args: UpdateStatusArgs, ctx) -> str:
     # The legal-transition check already ran in validate_call. By the time a
     # tool executes, the call is known to be legal — tools do not re-check
     # policy, which keeps the rules in exactly one place.
-    app = _store.update_status(args.app_id, _owner(ctx), args.new_status)
+    app = app_store().update_status(args.app_id, _owner(ctx), args.new_status)
     return f"{app.app_id} ({app.title} @ {app.company}) is now '{app.status.value}'"
 
 
@@ -88,7 +87,7 @@ register(Tool(
 # ── draft_followup ────────────────────────────────────────────────────────────
 
 def _draft(args: DraftFollowupArgs, ctx) -> str:
-    app = _store.get(args.app_id, _owner(ctx))
+    app = app_store().get(args.app_id, _owner(ctx))
     days = (__import__("datetime").datetime.now() - app.updated_at).days
 
     # Deliberately a template rather than a model call. A tool that calls the
@@ -133,7 +132,7 @@ def _send(args: SendFollowupArgs, ctx) -> str:
     import datetime as dt
     from pathlib import Path
 
-    app = _store.get(args.app_id, _owner(ctx))
+    app = app_store().get(args.app_id, _owner(ctx))
     outbox = Path("outbox")
     outbox.mkdir(exist_ok=True)
 
