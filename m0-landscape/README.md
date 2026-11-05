@@ -46,7 +46,7 @@ python api_explorer.py
 
 ## What I learned
 
-- **API costs are surprisingly cheap.** Running all 10 experiments cost roughly $1 total. The barrier to experimenting is basically zero.
+- **API costs are surprisingly cheap.** All 10 experiments came to a dollar or two. The barrier to experimenting is basically zero.
 - **LLMs don't pull from the internet at runtime.** Training is a one-time process on a static dataset. When a model answers a question, it's generating from learned patterns — not looking anything up. Hallucination happens because it's predicting plausible text, not retrieving facts.
 - **Temperature controls conformity, not just creativity.** Lower temperature = the model picks the highest-probability token more strictly. Higher temperature = more randomness. At temp=0, both models returned identical output every run.
 - **Rate limits and context limits are different things.** GPT-4o has a 128K context window, but my account's 30K TPM rate limit blocked requests long before hitting it. Hitting a rate limit doesn't mean the model can't handle more — it means the account tier can't.
@@ -68,7 +68,7 @@ Running all 10 experiments costs approximately $1–2 total. Each individual cal
 | `api_explorer.py` | Main script — one function per experiment |
 | `llm_comparison.md` | Written analysis of all 10 experiments |
 | `stack_map.png` | 4-layer AI stack diagram |
-| `stack_map.html` | Source for the stack map diagram |
+| `demo.html` | Self-contained slide deck summarising the month — open it in a browser |
 | `logs/` | JSON-lines experiment logs (gitignored) |
 | `requirements.txt` | Python dependencies |
 | `.env.example` | API key template |
@@ -81,5 +81,4 @@ See [llm_comparison.md](./llm_comparison.md) for the complete write-up of all 10
 
 ---
 
-## Next: Month 1 — Prompt Engineering
-_(link when built)_
+## Next: [Month 1 — Prompt Engineering](../m1-prompt-eng/)

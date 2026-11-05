@@ -1,26 +1,32 @@
 """
 backend.py — Month 2
 
-WHAT      Data access, the bottom layer. Two implementations, one interface:
+WHAT      Data access, the bottom layer.
             FixtureBackend  recorded postings from fixtures/jobs.json
-            LiveBackend     a real job-search API
-EXPORTS   FixtureBackend, LiveBackend, BackendError
+            LiveBackend     NOT BUILT — sketched as a comment below. Cut when
+                            the roadmap was compressed. Nothing here talks to
+                            a real job board.
+EXPORTS   FixtureBackend, ApplicationStore, BackendError,
+          app_store / use_store / reset_store (the test seam)
 CALLED BY tools/*.py only. The agent never touches this directly.
 
 ══════════════════════════ reasoning and notes below ══════════════════════════
 
-WHY BOTH — record and replay
-----------------------------
+WHY FIXTURES — record and replay
+--------------------------------
 Live APIs return different data every day. A trajectory test recorded today
 fails tomorrow because the job listings changed, not because your agent got
-worse. That is a flaky test, and flaky tests get ignored.
-
-So: fixtures for the eval suite, live API for daily use. Weeks 1-4 run entirely
-on fixtures so results are reproducible; Week 5 swaps in the live source behind
-the same interface and the eval keeps running against the recordings.
+worse. That is a flaky test, and flaky tests get ignored. Recorded data is what
+makes pass^k over 5 runs mean anything.
 
 This is a real production pattern (VCR cassettes, golden files), not a shortcut
 for a learning project.
+
+The plan was fixtures for the eval and a live source for daily use, swapped in
+behind these same two methods. The live half was cut when the roadmap was
+compressed, so the interface is here and the implementation is not. What that
+costs: nothing exercises network failures, rate limits, or a response shape
+changing under the parser — which are the failures that actually happen.
 
 Applications are stored in applications.json — that is YOUR data and it persists
 either way.
@@ -96,7 +102,11 @@ class FixtureBackend:
         raise BackendError(f"no job with id {job_id!r}")
 
 
-# ── TODO Week 5: LiveBackend ──────────────────────────────────────────────────
+# ── NOT BUILT: LiveBackend ────────────────────────────────────────────────────
+#
+# Cut when the roadmap was compressed from six projects to three. Left here as a
+# sketch because the interface it would implement is the point — two methods,
+# same signatures, so the eval keeps running against recordings either way.
 #
 # class LiveBackend:
 #     """Same two methods, hitting a real API. Adzuna has a free developer tier.

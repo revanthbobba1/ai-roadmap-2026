@@ -29,10 +29,8 @@ from . import job_details   # noqa: F401  — get_job_details
 from . import search        # noqa: F401  — search_jobs
 from . import writes        # noqa: F401  — save, update_status, draft, send
 
-#
-# TODO Week 3 — do NOT add these before guardrails.py is built. A write tool
-# with no idempotency key duplicates records on every retry, and a
-# send_followup with no approval gate will eventually email someone by accident.
-# from . import save               # save_application
-# from . import status             # update_status
-# from . import followup           # draft_followup, send_followup
+# All four write tools ended up in writes.py rather than one module each, and
+# they were added only after guardrails.py existed. That order was deliberate: a
+# write tool with no idempotency key duplicates records on every retry, and a
+# send_followup with no approval gate eventually emails someone by accident.
+# Build the protection before the capability.

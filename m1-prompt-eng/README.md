@@ -43,18 +43,34 @@ python eval_harness.py
 
 ## Techniques tested
 
+Ten techniques across 11 experiments. Results and full reasoning in
+[prompt_library.md](./prompt_library.md).
+
 | # | Technique | What it measures |
 |---|-----------|------------------|
-| 1 | Zero-shot vs. few-shot | Accuracy delta; how many examples before it plateaus |
+| 1 | Zero-shot vs. few-shot | Accuracy delta — plus an ablation and a cross-model replication |
 | 2 | Role / persona prompting | Tone and thoroughness change across personas |
-| 3 | JSON / structured output | First-try parse success rate, per model |
-| 4 | Tool calling | Correct tool and argument selection |
-| 5 | Retry-on-invalid-JSON | Recovery rate within 1–2 retries |
-| 6 | Chain-of-thought | Accuracy gain vs. token/cost increase |
-| 7 | Self-consistency (N=5) | Majority-vote accuracy vs. single-shot |
-| 8 | Prompt chaining | Quality vs. a single mega-prompt |
+| 3 | JSON / structured output | First-try parse success rate, per model, flat schema and hard schema |
+| 4 | Tool calling | Whether format compliance can be instructed or has to be enforced |
+| 5 | Retry-on-invalid | Recovery rate, and whether the work should have been delegated at all |
+| 6 | Chain-of-thought | Accuracy gain vs. token and cost increase |
+| 7 | Self-consistency (N=5) | Majority-vote accuracy vs. single-shot, on maths and on extraction |
+| 8 | Prompt chaining | Quality vs. one larger prompt |
 | 9 | LLM-as-judge | Consistency across repeated judge calls |
 | 10 | Regression testing | Does the harness catch a real regression? |
+
+**The headline:** every head-to-head was won by the simpler option — prose rules
+over few-shot, computing a value in Python over retrying until the model got it
+right, a four-line rubric over a two-stage pipeline, reading a sample-agreement
+number over majority voting.
+
+That is a result about *these* tasks: short inputs, flat schemas, four-way
+classification, ten-line code snippets. Each elaborate technique exists because
+it solves something that appears at greater complexity, and none of those
+conditions held here — which is why they lost. The conclusion is not that
+sophisticated techniques are overrated, but that reaching for one before
+identifying the failure means paying for machinery that addresses a problem you
+don't have.
 
 ---
 
@@ -125,16 +141,37 @@ nothing.
 
 ## Files
 
+**Core**
+
 | File | Purpose |
 |------|---------|
-| `prompt_library.py` | Reusable prompt templates + registry |
-| `eval_harness.py` | Scoring engine — exact-match + LLM-as-judge |
-| `llm_client.py` | API layer carried over from Month 0 |
-| `test_sets/` | Labeled test data for each technique |
-| `prompt_library.md` | Written analysis of all techniques |
+| `prompt_library.py` | 17 templates across 5 task types. `PromptTemplate` defaults to `temperature=0.0`, not the API's default — reproducibility over variety. |
+| `eval_harness.py` | Six scorers, plus a format classifier (bare / fenced / prose) and a guard that aborts a run on any API error. |
+| `schemas.py` | Pydantic models, including a strict variant and one with cross-field validation. |
+| `llm_client.py` | API layer carried over from Month 0 — async Claude + GPT-4o, backoff, cost tracking. |
+
+**One file per technique**
+
+| File | Technique |
+|------|-----------|
+| `tool_calling.py` | Tool calling as a format mechanism, not a capability |
+| `retry_loop.py` | Bounded retry on invalid output |
+| `self_consistency.py` | Majority vote over N samples |
+| `self_consistency_extraction.py` | The same, on extraction rather than maths |
+| `chaining.py` | Prompt chaining vs. one larger prompt |
+| `checklist_scorer.py` | Grounded LLM-as-judge — one binary question per known defect |
+| `run_review.py` | Code review task driver |
+| `regression.py` | 12 experiment configs scored against `baselines.json`; exits 1 on regression |
+
+**Data and analysis**
+
+| File | Purpose |
+|------|---------|
+| `test_sets/` | Labelled test data — including `_hard` variants written after the originals turned out to be too easy |
+| `baselines.json` | Saved scores the regression gate compares against |
+| `prompt_library.md` | The full write-up, ~1,300 lines, all 11 experiments |
 | `logs/` | Eval run logs, JSON-lines (gitignored) |
-| `requirements.txt` | Python dependencies |
-| `.env.example` | API key template |
+| `requirements.txt`, `.env.example` | Dependencies, API key template |
 
 ---
 
@@ -145,5 +182,4 @@ See [prompt_library.md](./prompt_library.md) for the complete write-up — techn
 ---
 
 ## Previous: [Month 0 — AI Landscape Explorer](../m0-landscape/)
-## Next: Month 2 — Tool Use & Agents
-_(link when built)_
+## Next: [Month 2 — Tool Use & Agents](../m2-tool-use/)
