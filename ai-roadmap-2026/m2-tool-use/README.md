@@ -14,6 +14,63 @@
 
 ---
 
+## The loop
+
+Nothing executes because the model asked for it. Every proposed call passes four
+gates first, and three of them can return a string to the model instead of
+running anything.
+
+```mermaid
+flowchart TD
+    Q([user question]) --> M
+
+    M["<b>model turn</b><br/>system prompt + full history + tool specs"]
+    M --> D{"stop_reason?"}
+
+    D -->|end_turn| ANS([final answer])
+    D -->|tool_use| CAP
+
+    CAP{"turn &lt; max_iterations?"}
+    CAP -->|no| STUCK([IterationCapExceeded<br/><i>cap-hit rate = health metric</i>])
+    CAP -->|yes| V
+
+    subgraph EX["execute_tool — nothing runs until all four pass"]
+        direction TB
+        V["<b>1. schema validation</b><br/>types, ranges, extra=forbid"]
+        B["<b>2. budget</b><br/>calls, spend, high-blast count"]
+        R["<b>3. business rules</b><br/>e.g. legal status transitions"]
+        I["<b>4a. idempotency</b><br/>writes only — server-side key"]
+        A["<b>4b. approval gate</b><br/>HIGH_BLAST only — human says yes"]
+        RUN["tool runs<br/><i>session passed as ctx, never as args</i>"]
+
+        V --> B --> R --> I --> A --> RUN
+    end
+
+    V -.->|invalid| ERR
+    B -.->|over budget| ERR
+    R -.->|illegal| ERR
+    A -.->|denied| ERR
+
+    ERR["REFUSED / ERROR string"]
+
+    RUN --> RES["tool_result appended<br/><i>context grows every turn</i>"]
+    ERR --> RES
+    RES --> M
+
+    classDef gate fill:#fff4e6,stroke:#d9822b,color:#000
+    classDef danger fill:#ffe6e6,stroke:#c0392b,color:#000
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#000
+    class V,B,R,I gate
+    class A,ERR,STUCK danger
+    class ANS done
+```
+
+Three ways out: an answer, a refusal fed back for the model to correct, or the
+iteration cap. The cap-hit rate is the single best early warning in production —
+an agent that hits it is an agent that got stuck.
+
+---
+
 ## The tool set
 
 | Tool | Risk class | Guardrail |
@@ -77,13 +134,78 @@ That split exists because live APIs return different data every day, so a trajec
 
 ## What I learned
 
-_(fill in at end of month — 3–5 bullets from your own experiments)_
+**Tool descriptions mattered far less than expected — and the test set is why.**
+A 2×2 of overlapping vs. separable descriptions, crossed with real vs.
+neutralised tool names, scored 18/18, 18/18, 17/18, 18/18. No detectable
+difference at that sample size. Two causes: the queries carried the routing
+signal themselves (an id, a possessive "my", a search verb plus a location), and
+there were only three functionally distinct tools, so there was nothing to
+disambiguate. The conclusion is not "descriptions don't matter" — it is that
+description tuning is a scoping question. It should matter with a large tool
+set, genuinely overlapping functions, or vague queries, and I had none of those.
+
+**Over-retrieval is the half of tool use that usually goes untested.** It is
+tempting to let an application reach for a tool wherever one might apply, but
+every unnecessary call costs latency and money for an answer the model already
+had. Measured directly: the fixed pipeline made 4 tool calls on every advice
+question — cover letter openings, follow-up timing — where the agent made zero.
+Testing only the happy path, that waste is invisible.
+
+The lever is not "prompt the model to call fewer tools." In increasing order of
+reliability: scope the tool out in its description (a hint it can ignore), put a
+deterministic pre-filter in front so the question never reaches the model, or
+don't give it the tool at all. Which one depends on the traffic mix.
+
+**Guardrails should be tiered because human attention is the scarce resource.**
+An approval gate on every tool means a human reviews everything, which is a slow
+autocomplete rather than an agent. No gate means eventually sending something
+irreversible by accident. Classifying tools by blast radius — read-only, scoped
+read, reversible write, irreversible — is what makes the gate affordable enough
+to keep on the one action that needs it. The human is not removed; they are
+removed from six tools so they are available for the seventh.
+
+**A workflow beats an agent whenever the task permits one.** 25% pass vs. 100%,
+but 55% cheaper, 35% faster, and with zero run-to-run variance. The finding I
+did not expect: all three should-refuse cases passed because the pipeline has no
+code path to `send_followup`. In a workflow, blast radius is a design-time
+property; in an agent it is a runtime one. The safest agent is the one that was
+not built.
+
+**A green eval suite does not mean the tests are real.** Four of twelve cases
+were asserting nothing — empty expected-content lists, or a keyword that any
+plausible answer contains. They only surfaced because an implementation that
+physically cannot save or read the tracker passed them anyway. Running something
+known to be broken through the suite is the only way to check the suite works,
+and no amount of staring at a 100% tells you.
 
 ---
 
 ## Cost
 
-_(fill in — roughly what does a full eval run cost?)_
+All on `claude-haiku-4-5`, temperature 0.
+
+| What | Cost |
+|---|---|
+| One agent question (2 tool calls) | ~$0.002 |
+| One workflow question (4 tool calls, 2 LLM calls) | ~$0.002 |
+| `agent_eval.py 5` — 12 cases x 5 runs, hand-built | $0.24 |
+| same, LangGraph | $0.22 |
+| same, workflow | $0.11 |
+
+So the full three-way comparison is about **$0.57** and ten minutes. Cheap enough
+to re-run on every meaningful change, which is the only reason it gets re-run at
+all — a suite expensive enough to skip catches nothing.
+
+Two notes on reading those numbers:
+
+- **LangGraph is cheaper by accident.** Its schema conversion strips
+  auto-generated `title` fields from the tool definitions, which ship with every
+  request. 12% smaller definitions, ~9% lower total. Not a framework
+  optimisation, a side effect.
+- **The workflow's saving is regime-dependent.** It makes fewer LLM calls (2 vs
+  3) but more tool calls (4 vs 2). It looks cheap because these tools are local
+  fixture reads. Against a paid API the two extra calls would swamp the model
+  call saved.
 
 ---
 
